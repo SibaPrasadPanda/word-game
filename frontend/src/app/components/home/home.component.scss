@@ -1,0 +1,44 @@
+.container {
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 2rem;
+  text-align: center;
+
+  h1 {
+    margin-bottom: 2rem;
+    color: #333;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.join-game {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  
+  mat-form-field {
+    width: 100%;
+  }
+}
+
+.share-link {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: #f5f5f5;
+  border-radius: 8px;
+
+  p {
+    margin-bottom: 1rem;
+    color: #666;
+  }
+
+  mat-form-field {
+    width: 100%;
+  }
+}

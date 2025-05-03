@@ -1,0 +1,38 @@
+<div class="result-container">
+  <mat-card>
+    <mat-card-content>
+      <h2>Game Over!</h2>
+      
+      <div class="result-message" *ngIf="game">
+        <p class="status" [ngClass]="{'winner': isWinner, 'loser': !isWinner}">
+          {{ isWinner ? 'You Won! 🎉' : 'You Lost! 😢' }}
+        </p>
+        
+        <div class="stats">
+          <h3>Game Stats</h3>
+          <p>Total Words: {{ moves.length }}</p>
+          <p>Your Words: {{ getPlayerWordCount() }}</p>
+        </div>
+
+        <div class="word-list">
+          <h3>Word History</h3>
+          <div class="words">
+            <div *ngFor="let move of moves" class="word-item"
+                 [ngClass]="{'my-word': move.user_id === currentUserId}">
+              {{ move.word }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button mat-raised-button color="primary" (click)="playAgain()">
+          Play Again
+        </button>
+        <button mat-raised-button (click)="goHome()">
+          Back to Home
+        </button>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>

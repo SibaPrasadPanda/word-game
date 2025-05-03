@@ -1,0 +1,30 @@
+<div class="container">
+  <h1>Word Chain Game</h1>
+  
+  <div class="actions">
+    <button mat-raised-button color="primary" (click)="createGame()">
+      Create New Game
+    </button>
+    
+    <div class="join-game">
+      <mat-form-field>
+        <mat-label>Game Link</mat-label>
+        <input matInput [(ngModel)]="gameLink" placeholder="Paste game link here">
+      </mat-form-field>
+      
+      <button mat-raised-button color="accent" (click)="joinGame()" [disabled]="!gameLink">
+        Join Game
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="shareableLink" class="share-link">
+    <p>Share this link with your opponent:</p>
+    <mat-form-field>
+      <input matInput [value]="shareableLink" readonly>
+      <button matSuffix mat-icon-button (click)="copyLink()">
+        <mat-icon>content_copy</mat-icon>
+      </button>
+    </mat-form-field>
+  </div>
+</div>

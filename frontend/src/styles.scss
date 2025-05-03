@@ -1,0 +1,68 @@
+@use '@angular/material' as mat;
+
+// Define theme colors
+
+// Create the theme
+
+
+// Include material core styles
+@include mat.core();
+
+// Apply the theme
+
+// Global styles
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+  background: #fafafa;
+}
+
+main {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.mat-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+// Common utility classes
+.full-width {
+  width: 100%;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.mt-2 {
+  margin-top: 2rem;
+}
+
+.mb-2 {
+  margin-bottom: 2rem;
+}
+
+// Scrollbar styling
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}

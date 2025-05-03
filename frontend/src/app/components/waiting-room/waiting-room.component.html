@@ -1,0 +1,22 @@
+<div class="waiting-room">
+  <mat-card>
+    <mat-card-content>
+      <h2>Waiting for Opponent</h2>
+      <div class="spinner">
+        <mat-spinner diameter="50"></mat-spinner>
+      </div>
+      <p>Share this link with your opponent:</p>
+      <mat-form-field>
+        <input matInput [value]="shareableLink" readonly>
+        <button matSuffix mat-icon-button (click)="copyLink()">
+          <mat-icon>content_copy</mat-icon>
+        </button>
+      </mat-form-field>
+      <div class="actions">
+        <button mat-raised-button color="warn" (click)="cancelGame()">
+          Cancel Game
+        </button>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>
