@@ -9,7 +9,7 @@ export interface GameRoom {
   player2_id: string | null;
   status: 'WAITING' | 'ONGOING' | 'FINISHED';
   current_turn: string;
-  winner_id: string | null;
+  winner_id: string;
   created_at: Date;
 }
 

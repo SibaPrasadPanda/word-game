@@ -2,21 +2,26 @@
   <div class="game-status">
     <mat-card>
       <mat-card-content>
-        <div [ngClass]="{'active-turn': isYourTurn}" class="turn-indicator">
-          {{ turnIndicator }}
+        <div *ngIf="isGameEnded" class="game-end-banner" [class.winner]="isWinner">
+          <h2>{{ gameEndMessage }}</h2>
+          <div class="end-game-actions">
+          </div>
         </div>
-        <div class="player-info">
-          <div>You: {{ currentUserId }}</div>
-          <div>Opponent: {{ opponentId }}</div>
-        </div>
-        <div class="game-actions">
-          <button mat-raised-button 
-                  color="warn" 
-                  (click)="surrender()"
-                  [disabled]="!game || game.status !== 'ONGOING'">
-            <mat-icon>flag</mat-icon>
-            Surrender
-          </button>
+        <div *ngIf="!isGameEnded">
+          <div [ngClass]="{'active-turn': isYourTurn}" class="turn-indicator">
+            {{ turnIndicator }}
+          </div>
+          <div class="player-info">
+            <div>You: {{ currentUserId }}</div>
+            <div>Opponent: {{ opponentId }}</div>
+          </div>
+          <div class="game-actions">
+            <button mat-raised-button color="warn" (click)="surrender()"
+              [disabled]="!game || game.status !== 'ONGOING'">
+              <mat-icon>flag</mat-icon>
+              Surrender
+            </button>
+          </div>
         </div>
       </mat-card-content>
     </mat-card>
@@ -25,8 +30,7 @@
   <div class="word-history">
     <h3>Word History</h3>
     <div class="words-list">
-      <div *ngFor="let move of moves" class="word-item"
-           [ngClass]="{'my-word': move.user_id === currentUserId}">
+      <div *ngFor="let move of moves" class="word-item" [ngClass]="{'my-word': move.user_id === currentUserId}">
         <span class="word">{{ move.word }}</span>
         <button mat-icon-button (click)="lookupWord(move.word)">
           <mat-icon>info</mat-icon>
@@ -42,16 +46,14 @@
   <div class="word-input">
     <mat-form-field class="word-input">
       <mat-label>{{ getWordHint() }}</mat-label>
-      <input matInput 
-             [(ngModel)]="currentWord"
-             [placeholder]="getWordHint()"
-             [disabled]="!isYourTurn">
+        <input matInput 
+               [(ngModel)]="currentWord"
+               [placeholder]="getWordHint()"
+               [disabled]="!isYourTurn || isGameEnded">
       <mat-hint *ngIf="moves.length > 0">
         Last word: {{ moves[moves.length - 1].word }}
       </mat-hint>
-      <button mat-icon-button matSuffix 
-              (click)="submitWord()" 
-              [disabled]="!currentWord || !isYourTurn">
+      <button mat-icon-button matSuffix (click)="submitWord()" [disabled]="!currentWord || !isYourTurn">
         <mat-icon>send</mat-icon>
       </button>
     </mat-form-field>

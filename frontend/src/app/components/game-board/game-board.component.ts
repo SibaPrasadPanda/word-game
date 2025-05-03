@@ -6,7 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
-import { interval, Subscription } from 'rxjs';
+import { interval, Subscription, takeWhile } from 'rxjs';
 import { GameService, GameRoom, GameMove } from '../../services/game.service';
 import { WordService, WordMeaning } from '../../services/word.service';
 import { MatCard, MatCardContent } from '@angular/material/card';
@@ -63,7 +63,16 @@ export class GameBoardComponent implements OnInit, OnDestroy {
     this.gameService.getGame(gameId).subscribe({
       next: (response) => {
         this.game = response.game;
-        this.loadMoves(gameId);
+        
+        // Only load moves if game is not finished
+        if (!this.isGameEnded) {
+          this.loadMoves(gameId);
+        }
+
+        // If game just ended, unsubscribe from polling
+        if (this.isGameEnded && this.pollSubscription) {
+          this.pollSubscription.unsubscribe();
+        }
       },
       error: (error: { message: string }) => {
         console.error('Error loading game:', error);
@@ -82,10 +91,15 @@ export class GameBoardComponent implements OnInit, OnDestroy {
   }
 
   private setupPolling(gameId: string) {
-    this.pollSubscription = interval(3000).subscribe(() => {
-      this.loadGame(gameId);
+    this.pollSubscription = interval(3000).pipe(
+      takeWhile(() => !this.isGameEnded) // Stop polling when game ends
+    ).subscribe(() => {
+      if (!this.isGameEnded) {
+        this.loadGame(gameId);
+      }
     });
   }
+  
 
   private isDuplicateWord(word: string): boolean {
     return this.moves.some(move => move.word.toLowerCase() === word.toLowerCase());
@@ -93,19 +107,19 @@ export class GameBoardComponent implements OnInit, OnDestroy {
 
   get isYourTurn(): boolean {
     if (!this.game) return false;
-    
+
     // Player 1's turn when moves length is even (0, 2, 4...)
     // Player 2's turn when moves length is odd (1, 3, 5...)
     const isPlayer1 = this.currentUserId === this.game.player1_id;
     const isEvenMoves = this.moves.length % 2 === 0;
-    
+
     return (isPlayer1 && isEvenMoves) || (!isPlayer1 && !isEvenMoves);
   }
 
   get opponentId(): string | null {
     if (!this.game) return null;
-    return this.currentUserId === this.game.player1_id 
-      ? this.game.player2_id 
+    return this.currentUserId === this.game.player1_id
+      ? this.game.player2_id
       : this.game.player1_id;
   }
 
@@ -136,7 +150,7 @@ export class GameBoardComponent implements OnInit, OnDestroy {
 
   private validateWordChain(word: string): boolean {
     if (this.moves.length === 0) return true;
-    
+
     const lastWord = this.moves[this.moves.length - 1].word;
     const lastLetter = lastWord.charAt(lastWord.length - 1);
     const firstLetter = word.charAt(0);
@@ -192,8 +206,8 @@ export class GameBoardComponent implements OnInit, OnDestroy {
   surrender() {
     if (!this.game) return;
 
-    const opponentId = this.currentUserId === this.game.player1_id 
-      ? this.game.player2_id 
+    const opponentId = this.currentUserId === this.game.player1_id
+      ? this.game.player2_id
       : this.game.player1_id;
 
     if (!opponentId) return;
@@ -201,12 +215,42 @@ export class GameBoardComponent implements OnInit, OnDestroy {
     this.gameService.endGame(this.game.id, opponentId).subscribe({
       next: () => {
         this.showError('You surrendered. Your opponent wins!');
-        this.loadGame(this.game!.id);
+        if (this.game) {
+          this.game.status = 'FINISHED';
+        }
+        if (this.game) {
+          this.game.winner_id = opponentId;
+        }
+        // this.loadGame(this.game!.id);
       },
       error: (error: { message: string }) => {
         this.showError('Failed to surrender: ' + error.message);
       }
     });
   }
-  
+
+  get isGameEnded(): boolean {
+    return this.game?.status === 'FINISHED';
+  }
+
+  get isWinner(): boolean {
+    return this.game?.winner_id === this.currentUserId;
+  }
+
+  get gameEndMessage(): string {
+    if (!this.isGameEnded) return '';
+    return this.isWinner ?
+      'Congratulations! You won the game!' :
+      'Game Over - Your opponent won!';
+  }
+
+  startNewGame() {
+    this.gameService.createGame(this.currentUserId).subscribe({
+      next: (response) => {
+        this.router.navigate(['/game', response.game.id]);
+      },
+      error: (error) => this.showError('Failed to create new game')
+    });
+  }
+
 }
