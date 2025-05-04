@@ -1,13 +1,13 @@
 {
   "name": "word-game-backend",
   "version": "1.0.0",
-  "description": "Backend for the word chain game",
+  "description": "Backend for word game",
   "main": "dist/index.js",
   "scripts": {
     "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn src/index.ts",
     "build": "tsc",
-    "postinstall": "npm run build"
+    "postinstall": "tsc"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.38.0",
@@ -19,8 +19,11 @@
     "@types/cors": "^2.8.13",
     "@types/express": "^4.17.17",
     "@types/node": "^20.11.0",
-    "ts-node": "^10.9.2",
+    "ts-node": "^10.9.1",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
