@@ -1,19 +1,9 @@
 import { Request, Response } from 'express';
 import { GameService } from '../services/gameService';
 import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
+import { config } from '../config/config';
 
-// Load environment variables
-dotenv.config();
-
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
-    throw new Error('Missing Supabase credentials in environment variables');
-}
-
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_KEY
-);
+const supabase = createClient(config.supabaseUrl!, config.supabaseKey!);
 
 const gameService = new GameService();
 
@@ -22,7 +12,7 @@ export class GameController {
         try {
             const { user_id } = req.body;
             const game = await gameService.createGame(user_id);
-            res.json({ game, shareableLink: `${process.env.FRONTEND_URL}/game/${game.id}` });
+            res.json({ game, shareableLink: `${config.corsOrigin}/game/${game.id}` });
         } catch (error) {
             res.status(500).json({ error: (error as Error).message });
         }

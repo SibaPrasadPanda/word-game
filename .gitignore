@@ -28,3 +28,5 @@ Thumbs.db
 # Angular specific
 .angular/
 coverage/
+# Local Netlify folder
+.netlify

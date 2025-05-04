@@ -1,4 +1,8 @@
-import { supabase } from '../index';
+import { createClient } from '@supabase/supabase-js';
+import { config } from '../config/config';
+
+const supabase = createClient(config.supabaseUrl!, config.supabaseKey!);
+
 import { GameRoom, GameMove } from '../models/types';
 
 export class GameService {

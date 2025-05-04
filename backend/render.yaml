@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: word-game-api
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: SUPABASE_URL
+        value: https://kzdvsokfiaqoyrchwowk.supabase.co
+      - key: SUPABASE_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6ZHZzb2tmaWFxb3lyY2h3b3drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYyODYyNTgsImV4cCI6MjA2MTg2MjI1OH0.kVvwAhTHCHl186t7CVGxQt3SNPAPUBfKp_53trVUOWI
+      - key: FRONTEND_URL
+        value: https://word-fun.netlify.app
+    headers:
+      - path: /*
+        name: Access-Control-Allow-Origin
+        value: https://word-fun.netlify.app
