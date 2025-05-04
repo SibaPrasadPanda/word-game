@@ -1,39 +1,27 @@
 <div class="container">
+  <app-loading-spinner></app-loading-spinner>
+  
+  <div *ngIf="errorMessage" class="error-message">
+    {{ errorMessage }}
+  </div>
+
   <h1>Word Chain Game</h1>
 
   <div class="game-options">
-    <button mat-raised-button color="primary" (click)="createGame()" style="margin-right: 10px;">
+    <button mat-raised-button color="primary" (click)="createGame()">
       Play with Friend
     </button>
     <button mat-raised-button color="accent" (click)="createGameVsComputer()">
-      Play against Computer
+      Play vs Computer
     </button>
   </div>
-  <br>
 
-  <div class="actions">
-    <!-- <button mat-raised-button color="primary" (click)="createGame()">
-        Create New Game
-      </button> -->
-
-    <div class="join-game">
-      <mat-form-field>
-        <mat-label>Game Link</mat-label>
-        <input matInput [(ngModel)]="gameLink" placeholder="Paste game link here">
-      </mat-form-field>
-
-      <button mat-raised-button color="accent" (click)="joinGame()" [disabled]="!gameLink">
-        Join Game
-      </button>
-    </div>
-  </div>
-
-  <div *ngIf="shareableLink" class="share-link">
-    <p>Share this link with your opponent:</p>
-    <mat-form-field>
-      <input matInput [value]="shareableLink" readonly>
-      <button matSuffix mat-icon-button (click)="copyLink()">
-        <mat-icon>content_copy</mat-icon>
+  <div class="join-game-form">
+    <mat-form-field appearance="outline">
+      <mat-label>Enter game link or ID</mat-label>
+      <input matInput [(ngModel)]="gameLink" placeholder="Paste game link here">
+      <button mat-icon-button matSuffix (click)="joinGame()" [disabled]="!gameLink">
+        <mat-icon>play_arrow</mat-icon>
       </button>
     </mat-form-field>
   </div>

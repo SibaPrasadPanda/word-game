@@ -7,6 +7,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
 import { GameService } from '../../services/game.service';
 import { CommonModule, NgIf } from '@angular/common';
+import { LoadingService } from '../../services/loading.service';
+import { LoadingSpinnerComponent } from '../loading-spinner/loading-spinner.component';
 
 @Component({
   selector: 'app-home',
@@ -19,32 +21,36 @@ import { CommonModule, NgIf } from '@angular/common';
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
-    MatIconModule,NgIf
+    MatIconModule,NgIf,
+    LoadingSpinnerComponent
   ]
 })
 export class HomeComponent {
   gameLink: string = '';
   shareableLink: string = '';
+  errorMessage: string = '';
 
   constructor(
     private gameService: GameService,
-    private router: Router
+    private router: Router,
+    private loadingService: LoadingService
   ) {}
 
   async createGame() {
-    // For now, create a temporary guest user ID
     const guestId = 'guest_' + Math.random().toString(36).substring(2);
+    localStorage.setItem('user_id', guestId);
     
+    this.loadingService.setLoading(true);
     this.gameService.createGame(guestId).subscribe({
       next: (response) => {
         this.shareableLink = response.shareableLink;
-        localStorage.setItem('user_id', guestId);
         localStorage.setItem('gameId', response.game.id);
         this.router.navigate(['/waiting-room', response.game.id]);
+        this.loadingService.setLoading(false);
       },
       error: (error: { message: string }) => {
-        console.error('Error creating game:', error);
-        // TODO: Add error handling UI
+        this.showError(error.message || 'Failed to create game');
+        this.loadingService.setLoading(false);
       }
     });
   }
@@ -59,16 +65,18 @@ export class HomeComponent {
     }
 
     const guestId = 'guest_' + Math.random().toString(36).substring(2);
+    localStorage.setItem('user_id', guestId);
     
+    this.loadingService.setLoading(true);
     this.gameService.joinGame(gameId, guestId).subscribe({
       next: (response) => {
-        localStorage.setItem('user_id', guestId);
         localStorage.setItem('gameId', gameId);
         this.router.navigate(['/game', gameId]);
+        this.loadingService.setLoading(false);
       },
       error: (error: { message: string }) => {
-        console.error('Error joining game:', error);
-        // TODO: Add error handling UI
+        this.showError(error.message || 'Failed to join game');
+        this.loadingService.setLoading(false);
       }
     });
   }
@@ -89,10 +97,17 @@ export class HomeComponent {
         this.router.navigate(['/game', response.game.id]);
       },
       error: (error: { message: string }) => {
-        console.error('Error creating game vs computer:', error);
-        // TODO: Add error handling UI
+        this.showError(error.message || 'Failed to create game vs computer');
+        this.loadingService.setLoading(false);
       }
     });
+  }
+
+  private showError(message: string) {
+    this.errorMessage = message;
+    setTimeout(() => {
+      this.errorMessage = '';
+    }, 3000);
   }
 
   private extractGameId(link: string): string | null {

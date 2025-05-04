@@ -9,6 +9,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { interval, Subscription } from 'rxjs';
 import { GameService } from '../../services/game.service';
+import { LoadingService } from '../../services/loading.service';
+import { LoadingSpinnerComponent } from '../loading-spinner/loading-spinner.component';
+import { SuccessMessageComponent } from '../success-message/success-message.component';
 
 @Component({
   selector: 'app-waiting-room',
@@ -22,18 +25,23 @@ import { GameService } from '../../services/game.service';
     MatFormFieldModule,
     MatInputModule,
     MatIconModule,
-    MatProgressSpinnerModule
+    MatProgressSpinnerModule,
+    LoadingSpinnerComponent,
+    SuccessMessageComponent
   ]
 })
 export class WaitingRoomComponent implements OnInit, OnDestroy {
   shareableLink: string = '';
   private gameId: string = '';
   private pollSubscription?: Subscription;
+  errorMessage: string = '';
+  successMessage: string = '';
 
   constructor(
     private gameService: GameService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private loadingService: LoadingService
   ) {}
 
   ngOnInit() {
@@ -57,24 +65,40 @@ export class WaitingRoomComponent implements OnInit, OnDestroy {
   }
 
   private checkGameStatus() {
+    // this.loadingService.setLoading(true);
     this.gameService.getGame(this.gameId).subscribe({
       next: (response) => {
         if (response.game.status === 'ONGOING') {
           this.router.navigate(['/game', this.gameId]);
         }
+        // this.loadingService.setLoading(false);
       },
       error: (error: { message: string }) => {
-        console.error('Error checking game status:', error);
-        this.router.navigate(['/']);
+        this.showError('Failed to check game status');
+        // this.loadingService.setLoading(false);
       }
     });
   }
 
   copyLink() {
-    navigator.clipboard.writeText(this.shareableLink);
+    navigator.clipboard.writeText(this.shareableLink)
+      .then(() => {
+        this.successMessage = 'Link copied to clipboard!';
+        setTimeout(() => this.successMessage = '', 3000);
+      })
+      .catch(() => this.showError('Failed to copy link'));
   }
 
   cancelGame() {
     this.router.navigate(['/']);
+  }
+
+  private showError(message: string) {
+    this.errorMessage = message;
+    setTimeout(() => this.errorMessage = '', 3000);
+  }
+
+  private showSuccess(message: string) {
+    // You can implement success message if needed
   }
 }

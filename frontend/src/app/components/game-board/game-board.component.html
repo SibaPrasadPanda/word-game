@@ -1,124 +1,113 @@
-<div class="game-board">
-  <div class="game-status">
-    <mat-card>
-      <mat-card-content>
-        <div *ngIf="isGameEnded" class="game-end-banner" [class.winner]="isWinner">
-          <h2>{{ gameEndMessage }}</h2>
-          <p class="end-game-subtitle">
-            {{ isWinner ? 'Your opponent surrendered!' : 'Better luck next time!' }}
-          </p>
-          <div class="end-game-actions">
-            <button mat-raised-button color="primary" (click)="startNewGame()">
-              Start New Game
-            </button>
-            <button mat-raised-button routerLink="/">
-              Leave Room
-            </button>
+<div class="game-container">
+  <app-loading-spinner></app-loading-spinner>
+  <div class="game-board">
+    <div class="game-status">
+      <mat-card>
+        <mat-card-content>
+          <div *ngIf="!isGameEnded">
+            <div [ngClass]="{'active-turn': isYourTurn}" class="turn-indicator" style="color: white;">
+              {{ turnIndicator }}
+            </div>
+            <div class="player-info">
+              <div class="player-card">You: {{ currentUserId | slice:0:10 }}...</div>
+              <div class="player-card">Opponent: {{ opponentId | slice:0:10 }}...</div>
+            </div>
           </div>
-        </div>
-        <div *ngIf="!isGameEnded">
-          <div [ngClass]="{'active-turn': isYourTurn}" class="turn-indicator">
-            {{ turnIndicator }}
+          <div *ngIf="isGameEnded" class="game-end-banner" [class.winner]="isWinner">
+            <h2>{{ gameEndMessage }}</h2>
+            <p class="end-game-subtitle">
+              {{ isWinner ? 'Your opponent surrendered!' : 'Better luck next time!' }}
+            </p>
+            <div class="end-game-actions">
+              <button mat-raised-button color="primary" (click)="startNewGame()">
+                Start New Game
+              </button>
+              <button mat-raised-button routerLink="/">
+                Leave Room
+              </button>
+            </div>
           </div>
-          <div class="player-info">
-            <div style="margin-right: 10px;">You: {{ currentUserId }}</div>
-            <div>Opponent: {{ opponentId }}</div>
-          </div>
-          <!-- <div class="game-actions">
-            <button mat-raised-button color="warn" (click)="surrender()"
-              [disabled]="!game || game.status !== 'ONGOING'">
-              <mat-icon>flag</mat-icon>
-              Surrender
-            </button>
-          </div> -->
-        </div>
-      </mat-card-content>
-    </mat-card>
-  </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
 
-  <div class="word-history">
-    <h3>Word History</h3>
-    <div class="words-list" #wordHistory>
-      <div *ngFor="let move of moves" class="word-item" 
-           [ngClass]="{'my-word': move.user_id === currentUserId}">
-        <span class="word">{{ move.word }}</span>
-        <button mat-icon-button (click)="lookupWord(move.word)" 
-                matTooltip="Look up word meaning">
-          <mat-icon>info</mat-icon>
-        </button>
+    <div class="word-history">
+      <h3>Word History</h3>
+      <div class="words-list" #wordHistory>
+        <div *ngFor="let move of moves" class="word-item" 
+             [ngClass]="{'my-word': move.user_id === currentUserId}">
+          <span class="word">{{ move.word }}</span>
+          <button mat-icon-button (click)="lookupWord(move.word)" 
+                  matTooltip="Look up word meaning">
+            <mat-icon>info</mat-icon>
+          </button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- <app-word-search [wordMeaning]="currentWordMeaning"></app-word-search> -->
-
-  <div *ngIf="errorMessage" class="error-message">
-    {{ errorMessage }}
-  </div>
-
-  <div class="word-input">
-    <mat-form-field class="word-input">
-      <mat-label>{{ getWordHint() }}</mat-label>
-        <input matInput 
-               [(ngModel)]="currentWord"
-               [placeholder]="getWordHint()"
-               [disabled]="!isYourTurn || isGameEnded">
-      <mat-hint *ngIf="moves.length > 0">
-        Last word: {{ moves[moves.length - 1].word }}
-      </mat-hint>
-      <button mat-icon-button matSuffix (click)="submitWord()" [disabled]="!currentWord || !isYourTurn">
-        <mat-icon>send</mat-icon>
-      </button>
-    </mat-form-field>
-  </div>
-
-  <div class="word-meaning" *ngIf="currentWordMeaning">
-    <h3>{{ currentWordMeaning.word }}</h3>
-    
-    <!-- Phonetics section -->
-    <div class="phonetics" *ngIf="currentWordMeaning.phonetics.length > 0">
-      <span *ngFor="let phonetic of currentWordMeaning.phonetics">
-        <span *ngIf="phonetic.text">{{ phonetic.text }}</span>
-        <button mat-icon-button *ngIf="phonetic.audio" 
-                (click)="playAudio(phonetic.audio)">
-          <mat-icon>volume_up</mat-icon>
-        </button>
-      </span>
+    <div *ngIf="errorMessage" class="error-message">
+      {{ errorMessage }}
     </div>
-  
-    <!-- Meanings section -->
-    <div *ngFor="let meaning of currentWordMeaning.meanings" class="meaning-group">
-      <h4 class="part-of-speech">{{ meaning.partOfSpeech }}</h4>
+
+    <div class="word-input">
+      <mat-form-field class="word-input">
+        <mat-label>{{ getWordHint() }}</mat-label>
+          <input matInput 
+                 [(ngModel)]="currentWord"
+                 [placeholder]="getWordHint()"
+                 [disabled]="!isYourTurn || isGameEnded">
+        <mat-hint *ngIf="moves.length > 0">
+          Last word: {{ moves[moves.length - 1].word }}
+        </mat-hint>
+        <button mat-icon-button matSuffix (click)="submitWord()" [disabled]="!currentWord || !isYourTurn">
+          <mat-icon>send</mat-icon>
+        </button>
+      </mat-form-field>
+    </div>
+
+    <div class="word-meaning" *ngIf="currentWordMeaning">
+      <h3>{{ currentWordMeaning.word }}</h3>
       
-      <!-- Definitions -->
-      <ul class="definitions">
-        <li *ngFor="let def of meaning.definitions" class="definition">
-          <p>{{ def.definition }}</p>
-          <p *ngIf="def.example" class="example">
-            "{{ def.example }}"
-          </p>
-        </li>
-      </ul>
-  
-      <!-- Synonyms & Antonyms -->
-      <div class="word-relations" *ngIf="meaning.synonyms.length > 0 || meaning.antonyms.length > 0">
-        <div *ngIf="meaning.synonyms.length > 0" class="synonyms">
-          <strong>Synonyms:</strong> {{ meaning.synonyms.join(', ') }}
-        </div>
-        <div *ngIf="meaning.antonyms.length > 0" class="antonyms">
-          <strong>Antonyms:</strong> {{ meaning.antonyms.join(', ') }}
+      <div class="phonetics" *ngIf="currentWordMeaning.phonetics.length > 0">
+        <span *ngFor="let phonetic of currentWordMeaning.phonetics">
+          <span *ngIf="phonetic.text">{{ phonetic.text }}</span>
+          <button mat-icon-button *ngIf="phonetic.audio" 
+                  (click)="playAudio(phonetic.audio)">
+            <mat-icon>volume_up</mat-icon>
+          </button>
+        </span>
+      </div>
+    
+      <div *ngFor="let meaning of currentWordMeaning.meanings" class="meaning-group">
+        <h4 class="part-of-speech">{{ meaning.partOfSpeech }}</h4>
+        
+        <ul class="definitions">
+          <li *ngFor="let def of meaning.definitions" class="definition">
+            <p>{{ def.definition }}</p>
+            <p *ngIf="def.example" class="example">
+              "{{ def.example }}"
+            </p>
+          </li>
+        </ul>
+    
+        <div class="word-relations" *ngIf="meaning.synonyms.length > 0 || meaning.antonyms.length > 0">
+          <div *ngIf="meaning.synonyms.length > 0" class="synonyms">
+            <strong>Synonyms:</strong> {{ meaning.synonyms.join(', ') }}
+          </div>
+          <div *ngIf="meaning.antonyms.length > 0" class="antonyms">
+            <strong>Antonyms:</strong> {{ meaning.antonyms.join(', ') }}
+          </div>
         </div>
       </div>
-    </div>
-  
-    <!-- Source attribution -->
-    <div class="source" *ngIf="currentWordMeaning.sourceUrls.length > 0">
-      <small>
-        Source: 
-        <a [href]="currentWordMeaning.sourceUrls[0]" target="_blank">
-          {{ currentWordMeaning.sourceUrls[0] }}
-        </a>
-      </small>
+    
+      <div class="source" *ngIf="currentWordMeaning.sourceUrls.length > 0">
+        <small>
+          Source: 
+          <a [href]="currentWordMeaning.sourceUrls[0]" target="_blank">
+            {{ currentWordMeaning.sourceUrls[0] }}
+          </a>
+        </small>
+      </div>
     </div>
   </div>
 </div>

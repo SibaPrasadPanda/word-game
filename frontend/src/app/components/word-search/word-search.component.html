@@ -1,52 +1,55 @@
-<mat-card *ngIf="wordMeaning" class="word-meaning-card">
-  <mat-card-header>
-    <mat-card-title>{{ wordMeaning.word }}</mat-card-title>
-    <!-- Phonetics section -->
-    <mat-card-subtitle *ngIf="wordMeaning.phonetics.length > 0">
-      <span *ngFor="let phonetic of wordMeaning.phonetics" class="phonetic">
-        <span *ngIf="phonetic.text">{{ phonetic.text }}</span>
-        <button mat-icon-button *ngIf="phonetic.audio" 
-                (click)="playAudio(phonetic.audio)"
-                matTooltip="Play pronunciation">
-          <mat-icon>volume_up</mat-icon>
-        </button>
-      </span>
-    </mat-card-subtitle>
-  </mat-card-header>
+<div class="word-meaning-container">
+  <app-loading-spinner></app-loading-spinner>
+  <mat-card *ngIf="wordMeaning" class="word-meaning-card">
+    <mat-card-header>
+      <mat-card-title>{{ wordMeaning.word }}</mat-card-title>
+      <!-- Phonetics section -->
+      <mat-card-subtitle *ngIf="wordMeaning.phonetics.length > 0">
+        <span *ngFor="let phonetic of wordMeaning.phonetics" class="phonetic">
+          <span *ngIf="phonetic.text">{{ phonetic.text }}</span>
+          <button mat-icon-button *ngIf="phonetic.audio" 
+                  (click)="playAudio(phonetic.audio)"
+                  matTooltip="Play pronunciation">
+            <mat-icon>volume_up</mat-icon>
+          </button>
+        </span>
+      </mat-card-subtitle>
+    </mat-card-header>
 
-  <mat-card-content>
-    <!-- Meanings section -->
-    <div *ngFor="let meaning of wordMeaning.meanings" class="meaning-section">
-      <h3 class="part-of-speech">{{ meaning.partOfSpeech }}</h3>
-      
-      <!-- Definitions -->
-      <div *ngFor="let def of meaning.definitions" class="definition">
-        <p class="definition-text">{{ def.definition }}</p>
-        <p *ngIf="def.example" class="example">
-          "{{ def.example }}"
-        </p>
+    <mat-card-content>
+      <!-- Meanings section -->
+      <div *ngFor="let meaning of wordMeaning.meanings" class="meaning-section">
+        <h3 class="part-of-speech">{{ meaning.partOfSpeech }}</h3>
+        
+        <!-- Definitions -->
+        <div *ngFor="let def of meaning.definitions" class="definition">
+          <p class="definition-text">{{ def.definition }}</p>
+          <p *ngIf="def.example" class="example">
+            "{{ def.example }}"
+          </p>
+        </div>
+
+        <!-- Synonyms & Antonyms -->
+        <div class="word-relations">
+          <p *ngIf="meaning.synonyms.length > 0" class="synonyms">
+            <strong>Synonyms:</strong> {{ meaning.synonyms.join(', ') }}
+          </p>
+          <p *ngIf="meaning.antonyms.length > 0" class="antonyms">
+            <strong>Antonyms:</strong> {{ meaning.antonyms.join(', ') }}
+          </p>
+        </div>
       </div>
 
-      <!-- Synonyms & Antonyms -->
-      <div class="word-relations">
-        <p *ngIf="meaning.synonyms.length > 0" class="synonyms">
-          <strong>Synonyms:</strong> {{ meaning.synonyms.join(', ') }}
-        </p>
-        <p *ngIf="meaning.antonyms.length > 0" class="antonyms">
-          <strong>Antonyms:</strong> {{ meaning.antonyms.join(', ') }}
-        </p>
+      <!-- Source attribution -->
+      <div class="source-section" *ngIf="wordMeaning.sourceUrls.length > 0">
+        <mat-divider></mat-divider>
+        <small>
+          Source: 
+          <a [href]="wordMeaning.sourceUrls[0]" target="_blank" rel="noopener">
+            {{ wordMeaning.sourceUrls[0] }}
+          </a>
+        </small>
       </div>
-    </div>
-
-    <!-- Source attribution -->
-    <div class="source-section" *ngIf="wordMeaning.sourceUrls.length > 0">
-      <mat-divider></mat-divider>
-      <small>
-        Source: 
-        <a [href]="wordMeaning.sourceUrls[0]" target="_blank" rel="noopener">
-          {{ wordMeaning.sourceUrls[0] }}
-        </a>
-      </small>
-    </div>
-  </mat-card-content>
-</mat-card>
+    </mat-card-content>
+  </mat-card>
+</div>

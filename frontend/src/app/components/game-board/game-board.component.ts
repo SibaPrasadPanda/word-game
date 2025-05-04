@@ -14,6 +14,8 @@ import { MatCard, MatCardContent } from '@angular/material/card';
 import { WordSearchComponent } from '../word-search/word-search.component';
 import { ComputerplayerService } from '../../services/computerplayer.service';
 import { SocketService } from '../../services/socket.service';
+import { LoadingSpinnerComponent } from '../loading-spinner/loading-spinner.component';
+import { LoadingService } from '../../services/loading.service';
 
 @Component({
   selector: 'app-game-board',
@@ -29,7 +31,8 @@ import { SocketService } from '../../services/socket.service';
     MatIconModule,
     MatCard,
     MatCardContent,
-    WordSearchComponent
+    WordSearchComponent,
+    LoadingSpinnerComponent
   ]
 })
 export class GameBoardComponent implements OnInit, OnDestroy {
@@ -53,7 +56,8 @@ export class GameBoardComponent implements OnInit, OnDestroy {
     private computerPlayer: ComputerplayerService,
     private socketService: SocketService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private loadingService: LoadingService
   ) {
     this.currentUserId = localStorage.getItem('user_id') || '';
   }
@@ -80,6 +84,7 @@ export class GameBoardComponent implements OnInit, OnDestroy {
   }
 
   private loadGame(gameId: string) {
+    this.loadingService.setLoading(true);
     this.gameService.getGame(gameId).subscribe({
       next: (response) => {
         this.game = response.game;
@@ -101,10 +106,12 @@ export class GameBoardComponent implements OnInit, OnDestroy {
         if (this.isGameEnded && this.pollSubscription) {
           this.pollSubscription.unsubscribe();
         }
+        this.loadingService.setLoading(false);
       },
       error: (error: { message: string }) => {
         console.error('Error loading game:', error);
         this.router.navigate(['/']);
+        this.loadingService.setLoading(false);
       }
     });
   }
@@ -217,6 +224,7 @@ export class GameBoardComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.loadingService.setLoading(true);
     // First validate word exists in dictionary
     this.wordService.getWordMeaning(word).subscribe({
       next: () => {
@@ -227,15 +235,18 @@ export class GameBoardComponent implements OnInit, OnDestroy {
             this.currentWord = '';
             this.loadGame(gameId);
             setTimeout(() => this.scrollToBottom(), 100);
+            this.loadingService.setLoading(false);
           },
           error: (error: { message: string }) => {
             console.error('Error submitting word:', error);
             this.showError(error.message);
+            this.loadingService.setLoading(false);
           }
         });
       },
       error: () => {
         this.showError('Invalid word. Please check spelling.');
+        this.loadingService.setLoading(false);
       }
     });
   }
@@ -251,13 +262,15 @@ export class GameBoardComponent implements OnInit, OnDestroy {
   }
 
   lookupWord(word: string) {
+    this.loadingService.setLoading(true);
     this.wordService.getWordMeaning(word).subscribe({
       next: (meaning) => {
         this.currentWordMeaning = meaning;
-        // Remove audio play from here since we now have a dedicated button
+        this.loadingService.setLoading(false);
       },
       error: (error: { message: string }) => {
         this.showError('Word not found in dictionary');
+        this.loadingService.setLoading(false);
       }
     });
   }
@@ -313,15 +326,16 @@ export class GameBoardComponent implements OnInit, OnDestroy {
     if (!this.game || !this.moves.length || this.isComputerMoveInProgress) return;
 
     this.isComputerMoveInProgress = true;
+    this.loadingService.setLoading(true);
     const lastWord = this.moves[this.moves.length - 1].word;
     const startLetter = lastWord.charAt(lastWord.length - 1);
 
     this.computerPlayer.findWord(startLetter).subscribe({
       next: (word) => {
-        // Check if word is already used before validating with dictionary
         if (this.isDuplicateWord(word)) {
           console.log('Computer found duplicate word, trying again...');
           this.isComputerMoveInProgress = false;
+          this.loadingService.setLoading(false);
           this.makeComputerMove();
           return;
         }
@@ -332,11 +346,12 @@ export class GameBoardComponent implements OnInit, OnDestroy {
               next: (response) => {
                 this.loadGame(this.game!.id);
                 this.isComputerMoveInProgress = false;
+                this.loadingService.setLoading(false);
               },
               error: (error) => {
                 console.error('Computer move error:', error);
                 this.isComputerMoveInProgress = false;
-                // If error is due to duplicate word, try again
+                this.loadingService.setLoading(false);
                 if (error.message?.includes('already been used')) {
                   this.makeComputerMove();
                 }
@@ -344,8 +359,8 @@ export class GameBoardComponent implements OnInit, OnDestroy {
             });
           },
           error: () => {
-            // Try another word if invalid or duplicate
             this.isComputerMoveInProgress = false;
+            this.loadingService.setLoading(false);
             this.makeComputerMove();
           }
         });
@@ -353,6 +368,7 @@ export class GameBoardComponent implements OnInit, OnDestroy {
       error: () => {
         console.error('Could not find word for computer');
         this.isComputerMoveInProgress = false;
+        this.loadingService.setLoading(false);
       }
     });
   }
