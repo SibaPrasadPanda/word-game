@@ -17,3 +17,7 @@ services:
       - path: /*
         name: Access-Control-Allow-Origin
         value: https://word-fun.netlify.app
+    routes:
+      - type: rewrite
+        source: /socket.io/*
+        destination: /socket.io/$1

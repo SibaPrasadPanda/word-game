@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { config } from '../config/config';
+import { socketService } from '../index';
 
 const supabase = createClient(config.supabaseUrl!, config.supabaseKey!);
 
@@ -119,6 +120,24 @@ export class GameService {
 
         if (moveError) throw moveError;
 
+        // Notify clients about the new move
+        const { data: moves } = await supabase
+            .from('game_moves')
+            .select()
+            .eq('game_room_id', gameId)
+            .order('created_at', { ascending: true });
+
+        socketService.notifyMovesUpdate(gameId, { moves });
+
+        // Update game state and notify
+        const { data: updatedGame } = await supabase
+            .from('game_rooms')
+            .select()
+            .eq('id', gameId)
+            .single();
+
+        socketService.notifyGameUpdate(gameId, { game: updatedGame });
+
         return move;
     } catch (error: any) {
         console.error('Submit move error:', error);
@@ -201,6 +220,15 @@ export class GameService {
       console.error('End game error:', error);
       throw new Error('Failed to end game');
     }
+
+    // Notify clients about game end
+    const { data: game } = await supabase
+      .from('game_rooms')
+      .select()
+      .eq('id', gameId)
+      .single();
+
+    socketService.notifyGameUpdate(gameId, { game });
   }
 
   async createGameVsComputer(user_id: string): Promise<GameRoom> {

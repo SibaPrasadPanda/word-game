@@ -13,6 +13,7 @@ import { WordService, WordMeaning } from '../../services/word.service';
 import { MatCard, MatCardContent } from '@angular/material/card';
 import { WordSearchComponent } from '../word-search/word-search.component';
 import { ComputerplayerService } from '../../services/computerplayer.service';
+import { SocketService } from '../../services/socket.service';
 
 @Component({
   selector: 'app-game-board',
@@ -49,6 +50,7 @@ export class GameBoardComponent implements OnInit, OnDestroy {
     private gameService: GameService,
     private wordService: WordService,
     private computerPlayer: ComputerplayerService,
+    private socketService: SocketService,
     private route: ActivatedRoute,
     private router: Router
   ) {
@@ -60,15 +62,13 @@ export class GameBoardComponent implements OnInit, OnDestroy {
       const gameId = params['id'];
       if (gameId) {
         this.loadInitialData(gameId);
-        this.setupSmartPolling(gameId);
+        this.setupWebSocket(gameId);
       }
     });
   }
 
   ngOnDestroy() {
-    if (this.pollSubscription) {
-      this.pollSubscription.unsubscribe();
-    }
+    this.socketService.disconnect();
     this.gameUpdateSubject.complete();
     this.movesUpdateSubject.complete();
   }
@@ -117,52 +117,26 @@ export class GameBoardComponent implements OnInit, OnDestroy {
     });
   }
 
-  private setupSmartPolling(gameId: string) {
-    // Setup game polling with debounce
-    this.gameUpdateSubject.pipe(
-      debounceTime(300),
-      switchMap(() => this.gameService.getGame(gameId))
-    ).subscribe({
-      next: (response) => {
-        this.game = response.game;
-        if (this.game.status === 'ONGOING') {
-          // Increase poll interval gradually
-          this.pollInterval = Math.min(this.pollInterval * 1.2, this.maxPollInterval);
-          setTimeout(() => this.gameUpdateSubject.next(gameId), this.pollInterval);
+  private setupWebSocket(gameId: string) {
+    this.socketService.joinGame(gameId);
+    
+    this.socketService.onGameUpdate().subscribe({
+      next: (data) => {
+        this.game = data.game;
+        
+        if (this.game.is_vs_computer && !this.isYourTurn && !this.isGameEnded) {
+          if (!this.isComputerMoveInProgress) {
+            setTimeout(() => this.makeComputerMove(), 1000);
+          }
         }
-      },
-      error: (error) => {
-        console.error('Error fetching game:', error);
-        // On error, retry with exponential backoff
-        setTimeout(() => this.gameUpdateSubject.next(gameId), this.pollInterval * 2);
       }
     });
 
-    // Setup moves polling with debounce
-    this.movesUpdateSubject.pipe(
-      debounceTime(300),
-      switchMap(() => this.gameService.getMoves(gameId))
-    ).subscribe({
-      next: (response) => {
-        const newMoves = response.moves;
-        if (JSON.stringify(this.moves) !== JSON.stringify(newMoves)) {
-          this.moves = newMoves;
-          // Reset poll interval when new moves are detected
-          this.pollInterval = 3000;
-        }
-        if (!this.isGameEnded) {
-          setTimeout(() => this.movesUpdateSubject.next(gameId), this.pollInterval);
-        }
-      },
-      error: (error) => {
-        console.error('Error fetching moves:', error);
-        setTimeout(() => this.movesUpdateSubject.next(gameId), this.pollInterval * 2);
+    this.socketService.onMovesUpdate().subscribe({
+      next: (data) => {
+        this.moves = data.moves;
       }
     });
-
-    // Start polling
-    this.gameUpdateSubject.next(gameId);
-    this.movesUpdateSubject.next(gameId);
   }
 
   private isDuplicateWord(word: string): boolean {
