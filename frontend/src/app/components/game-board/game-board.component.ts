@@ -124,7 +124,7 @@ export class GameBoardComponent implements OnInit, OnDestroy {
       next: (data) => {
         this.game = data.game;
         
-        if (this.game.is_vs_computer && !this.isYourTurn && !this.isGameEnded) {
+        if (this.game?.is_vs_computer && !this.isYourTurn && !this.isGameEnded) {
           if (!this.isComputerMoveInProgress) {
             setTimeout(() => this.makeComputerMove(), 1000);
           }
