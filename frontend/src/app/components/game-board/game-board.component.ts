@@ -6,7 +6,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
-import { interval, Subscription, takeWhile } from 'rxjs';
+import { interval, Subject, Subscription } from 'rxjs';
+import { takeWhile, debounceTime, switchMap, catchError } from 'rxjs/operators';
 import { GameService, GameRoom, GameMove } from '../../services/game.service';
 import { WordService, WordMeaning } from '../../services/word.service';
 import { MatCard, MatCardContent } from '@angular/material/card';
@@ -39,6 +40,10 @@ export class GameBoardComponent implements OnInit, OnDestroy {
   private pollSubscription?: Subscription;
   errorMessage: string = '';
   private isComputerMoveInProgress = false;
+  private pollInterval = 3000; // Start with 3 seconds
+  private maxPollInterval = 10000; // Max 10 seconds
+  private gameUpdateSubject = new Subject<string>();
+  private movesUpdateSubject = new Subject<string>();
 
   constructor(
     private gameService: GameService,
@@ -53,8 +58,10 @@ export class GameBoardComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.route.params.subscribe(params => {
       const gameId = params['id'];
-      this.loadGame(gameId);
-      this.setupPolling(gameId);
+      if (gameId) {
+        this.loadInitialData(gameId);
+        this.setupSmartPolling(gameId);
+      }
     });
   }
 
@@ -62,6 +69,13 @@ export class GameBoardComponent implements OnInit, OnDestroy {
     if (this.pollSubscription) {
       this.pollSubscription.unsubscribe();
     }
+    this.gameUpdateSubject.complete();
+    this.movesUpdateSubject.complete();
+  }
+
+  private loadInitialData(gameId: string) {
+    this.loadGame(gameId);
+    this.loadMoves(gameId);
   }
 
   private loadGame(gameId: string) {
@@ -103,16 +117,53 @@ export class GameBoardComponent implements OnInit, OnDestroy {
     });
   }
 
-  private setupPolling(gameId: string) {
-    this.pollSubscription = interval(1000).pipe(
-      takeWhile(() => !this.isGameEnded) // Stop polling when game ends
-    ).subscribe(() => {
-      if (!this.isGameEnded) {
-        this.loadGame(gameId);
+  private setupSmartPolling(gameId: string) {
+    // Setup game polling with debounce
+    this.gameUpdateSubject.pipe(
+      debounceTime(300),
+      switchMap(() => this.gameService.getGame(gameId))
+    ).subscribe({
+      next: (response) => {
+        this.game = response.game;
+        if (this.game.status === 'ONGOING') {
+          // Increase poll interval gradually
+          this.pollInterval = Math.min(this.pollInterval * 1.2, this.maxPollInterval);
+          setTimeout(() => this.gameUpdateSubject.next(gameId), this.pollInterval);
+        }
+      },
+      error: (error) => {
+        console.error('Error fetching game:', error);
+        // On error, retry with exponential backoff
+        setTimeout(() => this.gameUpdateSubject.next(gameId), this.pollInterval * 2);
       }
     });
-  }
 
+    // Setup moves polling with debounce
+    this.movesUpdateSubject.pipe(
+      debounceTime(300),
+      switchMap(() => this.gameService.getMoves(gameId))
+    ).subscribe({
+      next: (response) => {
+        const newMoves = response.moves;
+        if (JSON.stringify(this.moves) !== JSON.stringify(newMoves)) {
+          this.moves = newMoves;
+          // Reset poll interval when new moves are detected
+          this.pollInterval = 3000;
+        }
+        if (!this.isGameEnded) {
+          setTimeout(() => this.movesUpdateSubject.next(gameId), this.pollInterval);
+        }
+      },
+      error: (error) => {
+        console.error('Error fetching moves:', error);
+        setTimeout(() => this.movesUpdateSubject.next(gameId), this.pollInterval * 2);
+      }
+    });
+
+    // Start polling
+    this.gameUpdateSubject.next(gameId);
+    this.movesUpdateSubject.next(gameId);
+  }
 
   private isDuplicateWord(word: string): boolean {
     return this.moves.some(move => move.word.toLowerCase() === word.toLowerCase());
