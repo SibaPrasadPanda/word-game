@@ -10,6 +10,7 @@ import { interval, Subscription, takeWhile } from 'rxjs';
 import { GameService, GameRoom, GameMove } from '../../services/game.service';
 import { WordService, WordMeaning } from '../../services/word.service';
 import { MatCard, MatCardContent } from '@angular/material/card';
+import { WordSearchComponent } from '../word-search/word-search.component';
 
 @Component({
   selector: 'app-game-board',
@@ -24,7 +25,8 @@ import { MatCard, MatCardContent } from '@angular/material/card';
     MatInputModule,
     MatIconModule,
     MatCard,
-    MatCardContent
+    MatCardContent,
+    WordSearchComponent
   ]
 })
 export class GameBoardComponent implements OnInit, OnDestroy {
@@ -63,7 +65,7 @@ export class GameBoardComponent implements OnInit, OnDestroy {
     this.gameService.getGame(gameId).subscribe({
       next: (response) => {
         this.game = response.game;
-        
+
         // Only load moves if game is not finished
         if (!this.isGameEnded) {
           this.loadMoves(gameId);
@@ -91,7 +93,7 @@ export class GameBoardComponent implements OnInit, OnDestroy {
   }
 
   private setupPolling(gameId: string) {
-    this.pollSubscription = interval(3000).pipe(
+    this.pollSubscription = interval(1000).pipe(
       takeWhile(() => !this.isGameEnded) // Stop polling when game ends
     ).subscribe(() => {
       if (!this.isGameEnded) {
@@ -99,7 +101,7 @@ export class GameBoardComponent implements OnInit, OnDestroy {
       }
     });
   }
-  
+
 
   private isDuplicateWord(word: string): boolean {
     return this.moves.some(move => move.word.toLowerCase() === word.toLowerCase());
@@ -177,28 +179,47 @@ export class GameBoardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const gameId = this.game.id;
-    this.gameService.submitMove(gameId, this.currentUserId, word).subscribe({
-      next: (response) => {
-        this.currentWord = '';
-        this.moves = [...this.moves, response.move];
-        this.loadGame(gameId);
+    // First validate word exists in dictionary
+    this.wordService.getWordMeaning(word).subscribe({
+      next: () => {
+        // Word is valid, proceed with submission
+        const gameId = this.game!.id;
+        this.gameService.submitMove(gameId, this.currentUserId, word).subscribe({
+          next: (response) => {
+            this.currentWord = '';
+            this.moves = [...this.moves, response.move];
+            this.loadGame(gameId);
+          },
+          error: (error: { message: string }) => {
+            console.error('Error submitting word:', error);
+            this.showError(error.message);
+          }
+        });
       },
-      error: (error: { message: string }) => {
-        console.error('Error submitting word:', error);
-        this.showError(error.message);
+      error: () => {
+        this.showError('Invalid word. Please check spelling.');
       }
     });
+  }
+
+  playAudio(audioUrl: string) {
+    if (audioUrl) {
+      const audio = new Audio(audioUrl);
+      audio.play().catch(error => {
+        console.error('Error playing audio:', error);
+        this.showError('Could not play pronunciation');
+      });
+    }
   }
 
   lookupWord(word: string) {
     this.wordService.getWordMeaning(word).subscribe({
       next: (meaning) => {
         this.currentWordMeaning = meaning;
+        // Remove audio play from here since we now have a dedicated button
       },
       error: (error: { message: string }) => {
-        console.error('Error looking up word:', error);
-        // TODO: Add error handling UI
+        this.showError('Word not found in dictionary');
       }
     });
   }
@@ -214,14 +235,9 @@ export class GameBoardComponent implements OnInit, OnDestroy {
 
     this.gameService.endGame(this.game.id, opponentId).subscribe({
       next: () => {
-        this.showError('You surrendered. Your opponent wins!');
-        if (this.game) {
-          this.game.status = 'FINISHED';
-        }
-        if (this.game) {
-          this.game.winner_id = opponentId;
-        }
-        // this.loadGame(this.game!.id);
+        // Force immediate game state update
+        this.game!.status = 'FINISHED';
+        this.game!.winner_id = opponentId;
       },
       error: (error: { message: string }) => {
         this.showError('Failed to surrender: ' + error.message);
@@ -239,9 +255,11 @@ export class GameBoardComponent implements OnInit, OnDestroy {
 
   get gameEndMessage(): string {
     if (!this.isGameEnded) return '';
-    return this.isWinner ?
-      'Congratulations! You won the game!' :
-      'Game Over - Your opponent won!';
+
+    if (this.isWinner) {
+      return 'Congratulations! You won the game!';
+    }
+    return 'Game Over - You surrendered!';
   }
 
   startNewGame() {

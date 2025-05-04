@@ -16,6 +16,11 @@ $success: #10b981;
   background: $surface;
   border-radius: 16px;
   box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+
+  app-word-search {
+    margin-top: 2rem;
+    display: block;
+  }
 }
 
 .game-status {
@@ -96,6 +101,16 @@ $success: #10b981;
       border-radius: 8px;
       background: $background;
       transition: all 0.2s ease;
+
+      button {
+        opacity: 0.6;
+        transition: all 0.2s ease;
+    
+        &:hover {
+          opacity: 1;
+          transform: scale(1.1);
+        }
+      }
 
       &.my-word {
         background: rgba($primary, 0.1);
@@ -218,6 +233,16 @@ $success: #10b981;
       h2 {
           color: #16a34a;
       }
+
+      .end-game-subtitle {
+        color: #15803d;
+      }
+  }
+
+  &:not(.winner) {
+    .end-game-subtitle {
+      color: #991b1b;
+    }
   }
 
   h2 {
@@ -236,4 +261,92 @@ $success: #10b981;
           min-width: 150px;
       }
   }
+
+  .end-game-subtitle {
+    font-size: 1.1rem;
+    margin: 1rem 0;
+    opacity: 0.8;
+  }
 }
+
+.word-meaning {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin: 1rem 0;
+
+  h3 {
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+    font-size: 1.5rem;
+  }
+
+  .phonetics {
+    color: #6b7280;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .meaning-group {
+    margin: 1rem 0;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    .part-of-speech {
+      color: #4f46e5;
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .definitions {
+      list-style-type: disc;
+      padding-left: 1.5rem;
+      
+      .definition {
+        margin: 0.5rem 0;
+
+        .example {
+          color: #6b7280;
+          font-style: italic;
+          margin-top: 0.25rem;
+          padding-left: 1rem;
+          border-left: 2px solid #e5e7eb;
+        }
+      }
+    }
+
+    .word-relations {
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+      
+      .synonyms, .antonyms {
+        margin: 0.25rem 0;
+      }
+    }
+  }
+
+  .source {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+    font-size: 0.8rem;
+    color: #6b7280;
+
+    a {
+      color: #4f46e5;
+      text-decoration: none;
+      
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+}
+

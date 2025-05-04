@@ -193,6 +193,7 @@ export class GameService {
             winner_id: winnerId 
         })
         .eq('id', gameId);
+        console.log('winnerId', winnerId);
 
     if (error) {
         console.error('End game error:', error);
