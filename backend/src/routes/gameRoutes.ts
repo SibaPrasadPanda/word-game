@@ -22,4 +22,7 @@ router.get('/:gameId/moves', gameController.getMoves);
 // End game (surrender)
 router.post('/:gameId/end', gameController.endGame);
 
+// Create a game vs computer
+router.post('/create-vs-computer', gameController.createGameVsComputer);
+
 export default router;

@@ -21,16 +21,16 @@
             {{ turnIndicator }}
           </div>
           <div class="player-info">
-            <div>You: {{ currentUserId }}</div>
+            <div style="margin-right: 10px;">You: {{ currentUserId }}</div>
             <div>Opponent: {{ opponentId }}</div>
           </div>
-          <div class="game-actions">
+          <!-- <div class="game-actions">
             <button mat-raised-button color="warn" (click)="surrender()"
               [disabled]="!game || game.status !== 'ONGOING'">
               <mat-icon>flag</mat-icon>
               Surrender
             </button>
-          </div>
+          </div> -->
         </div>
       </mat-card-content>
     </mat-card>

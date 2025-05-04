@@ -95,4 +95,14 @@ export class GameController {
             res.status(400).json({ error: error.message });
           }
     }
+
+    createGameVsComputer = async (req: Request, res: Response) =>{
+        try {
+            const { user_id } = req.body;
+            const game = await gameService.createGameVsComputer(user_id);
+            res.status(201).json({ game });
+        } catch (error: any) {
+            res.status(400).json({ error: error.message });
+        }
+    }
 }

@@ -11,6 +11,7 @@ export interface GameRoom {
   current_turn: string;
   winner_id: string;
   created_at: Date;
+  is_vs_computer: boolean;
 }
 
 export interface GameMove {
@@ -53,5 +54,9 @@ export class GameService {
     return this.http.post<void>(`${this.apiUrl}/${gameId}/end`, { 
       winnerId 
     });
+  }
+
+  createGameVsComputer(user_id: string): Observable<{ game: GameRoom; }> {
+    return this.http.post<{ game: GameRoom }>(`${this.apiUrl}/create-vs-computer`, { user_id });
   }
 }

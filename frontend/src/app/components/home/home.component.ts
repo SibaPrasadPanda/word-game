@@ -78,6 +78,23 @@ export class HomeComponent {
     // TODO: Add copy confirmation UI
   }
 
+  createGameVsComputer() {
+    const guestId = 'guest_' + Math.random().toString(36).substring(2);
+    
+    this.gameService.createGameVsComputer(guestId).subscribe({
+      next: (response) => {
+        localStorage.setItem('user_id', guestId);
+        localStorage.setItem('gameId', response.game.id);
+        // Navigate directly to game since no waiting needed for computer
+        this.router.navigate(['/game', response.game.id]);
+      },
+      error: (error: { message: string }) => {
+        console.error('Error creating game vs computer:', error);
+        // TODO: Add error handling UI
+      }
+    });
+  }
+
   private extractGameId(link: string): string | null {
     const segments = link.split('/');
     return segments[segments.length - 1] || null;

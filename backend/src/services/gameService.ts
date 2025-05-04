@@ -80,49 +80,47 @@ export class GameService {
 
   async submitMove(gameId: string, user_id: string, word: string): Promise<GameMove> {
     try {
-      // First validate the move
-      await this.validateMove(gameId, word);
+        // First validate the move
+        await this.validateMove(gameId, word);
 
-      // Get current game state
-      const { data: game } = await supabase
-        .from('game_rooms')
-        .select('*')
-        .eq('id', gameId)
-        .single();
+        // Get current game state
+        const { data: game } = await supabase
+            .from('game_rooms')
+            .select('*')
+            .eq('id', gameId)
+            .single();
 
-      if (!game) {
-        throw new Error('Game not found');
-      }
+        if (!game) {
+            throw new Error('Game not found');
+        }
 
-      // Insert the move
-      const { data: move, error: moveError } = await supabase
-        .from('game_moves')
-        .insert([{
-          game_room_id: gameId,
-          user_id,
-          word
-        }])
-        .select()
-        .single();
+        // For computer games, update turn to player1
+        if (game.is_vs_computer) {
+            await supabase
+                .from('game_rooms')
+                .update({ current_turn: game.player1_id })
+                .eq('id', gameId);
+        }
 
-      if (moveError) throw moveError;
+        // Insert the move
+        const { data: move, error: moveError } = await supabase
+            .from('game_moves')
+            .insert([{
+                game_room_id: gameId,
+                user_id,
+                word
+            }])
+            .select()
+            .single();
 
-      // Update the game's current turn to the other player
-      const nextTurn = user_id === game.player1_id ? game.player2_id : game.player1_id;
+        if (moveError) throw moveError;
 
-      const { error: updateError } = await supabase
-        .from('game_rooms')
-        .update({ current_turn: nextTurn })
-        .eq('id', gameId);
-
-      if (updateError) throw updateError;
-
-      return move;
+        return move;
     } catch (error: any) {
-      console.error('Submit move error:', error);
-      throw error;
+        console.error('Submit move error:', error);
+        throw error;
     }
-  }
+}
 
   private async validateMove(gameId: string, word: string): Promise<void> {
     const { data: existingMoves, error: movesError } = await supabase
@@ -187,17 +185,34 @@ export class GameService {
 
   async endGame(gameId: string, winnerId: string): Promise<void> {
     const { error } = await supabase
-        .from('game_rooms')
-        .update({ 
-            status: 'FINISHED',
-            winner_id: winnerId 
-        })
-        .eq('id', gameId);
-        console.log('winnerId', winnerId);
+      .from('game_rooms')
+      .update({
+        status: 'FINISHED',
+        winner_id: winnerId
+      })
+      .eq('id', gameId);
+    console.log('winnerId', winnerId);
 
     if (error) {
-        console.error('End game error:', error);
-        throw new Error('Failed to end game');
+      console.error('End game error:', error);
+      throw new Error('Failed to end game');
     }
-}
+  }
+
+  async createGameVsComputer(user_id: string): Promise<GameRoom> {
+    const { data: game, error } = await supabase
+      .from('game_rooms')
+      .insert({
+        player1_id: user_id,
+        player2_id: 'computer',
+        status: 'ONGOING',
+        is_vs_computer: true,
+        current_turn: user_id
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return game;
+  }
 }

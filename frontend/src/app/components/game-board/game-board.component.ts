@@ -11,6 +11,7 @@ import { GameService, GameRoom, GameMove } from '../../services/game.service';
 import { WordService, WordMeaning } from '../../services/word.service';
 import { MatCard, MatCardContent } from '@angular/material/card';
 import { WordSearchComponent } from '../word-search/word-search.component';
+import { ComputerplayerService } from '../../services/computerplayer.service';
 
 @Component({
   selector: 'app-game-board',
@@ -37,10 +38,12 @@ export class GameBoardComponent implements OnInit, OnDestroy {
   currentUserId: string = '';
   private pollSubscription?: Subscription;
   errorMessage: string = '';
+  private isComputerMoveInProgress = false;
 
   constructor(
     private gameService: GameService,
     private wordService: WordService,
+    private computerPlayer: ComputerplayerService,
     private route: ActivatedRoute,
     private router: Router
   ) {
@@ -65,6 +68,14 @@ export class GameBoardComponent implements OnInit, OnDestroy {
     this.gameService.getGame(gameId).subscribe({
       next: (response) => {
         this.game = response.game;
+
+        // Make computer move if it's computer's turn
+        if (this.game.is_vs_computer && !this.isYourTurn && !this.isGameEnded) {
+          // Add delay and check if move is not already in progress
+          if (!this.isComputerMoveInProgress) {
+            setTimeout(() => this.makeComputerMove(), 1000);
+          }
+        }
 
         // Only load moves if game is not finished
         if (!this.isGameEnded) {
@@ -268,6 +279,42 @@ export class GameBoardComponent implements OnInit, OnDestroy {
         this.router.navigate(['/game', response.game.id]);
       },
       error: (error) => this.showError('Failed to create new game')
+    });
+  }
+
+  private makeComputerMove() {
+    if (!this.game || !this.moves.length || this.isComputerMoveInProgress) return;
+
+    this.isComputerMoveInProgress = true;
+    const lastWord = this.moves[this.moves.length - 1].word;
+    const startLetter = lastWord.charAt(lastWord.length - 1);
+
+    this.computerPlayer.findWord(startLetter).subscribe({
+      next: (word) => {
+        this.wordService.getWordMeaning(word).subscribe({
+          next: () => {
+            this.gameService.submitMove(this.game!.id, 'computer', word).subscribe({
+              next: (response) => {
+                this.moves = [...this.moves, response.move];
+                this.loadGame(this.game!.id);
+                this.isComputerMoveInProgress = false;
+              },
+              error: (error) => {
+                console.error('Computer move error:', error);
+                this.isComputerMoveInProgress = false;
+              }
+            });
+          },
+          error: () => {
+            this.makeComputerMove(); // Try another word if invalid
+            this.isComputerMoveInProgress = false;
+          }
+        });
+      },
+      error: () => {
+        console.error('Could not find word for computer');
+        this.isComputerMoveInProgress = false;
+      }
     });
   }
 

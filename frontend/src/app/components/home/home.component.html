@@ -1,17 +1,27 @@
 <div class="container">
   <h1>Word Chain Game</h1>
-  
-  <div class="actions">
-    <button mat-raised-button color="primary" (click)="createGame()">
-      Create New Game
+
+  <div class="game-options">
+    <button mat-raised-button color="primary" (click)="createGame()" style="margin-right: 10px;">
+      Play with Friend
     </button>
-    
+    <button mat-raised-button color="accent" (click)="createGameVsComputer()">
+      Play against Computer
+    </button>
+  </div>
+  <br>
+
+  <div class="actions">
+    <!-- <button mat-raised-button color="primary" (click)="createGame()">
+        Create New Game
+      </button> -->
+
     <div class="join-game">
       <mat-form-field>
         <mat-label>Game Link</mat-label>
         <input matInput [(ngModel)]="gameLink" placeholder="Paste game link here">
       </mat-form-field>
-      
+
       <button mat-raised-button color="accent" (click)="joinGame()" [disabled]="!gameLink">
         Join Game
       </button>
