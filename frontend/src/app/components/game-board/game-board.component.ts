@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -33,6 +33,7 @@ import { SocketService } from '../../services/socket.service';
   ]
 })
 export class GameBoardComponent implements OnInit, OnDestroy {
+  @ViewChild('wordHistory') private wordHistoryElement!: ElementRef;
   game: GameRoom | null = null;
   moves: GameMove[] = [];
   currentWord: string = '';
@@ -112,6 +113,7 @@ export class GameBoardComponent implements OnInit, OnDestroy {
     this.gameService.getMoves(gameId).subscribe({
       next: (response) => {
         this.moves = response.moves;
+        setTimeout(() => this.scrollToBottom(), 100);
       },
       error: (error: { message: string }) => console.error('Error loading moves:', error)
     });
@@ -223,8 +225,8 @@ export class GameBoardComponent implements OnInit, OnDestroy {
         this.gameService.submitMove(gameId, this.currentUserId, word).subscribe({
           next: (response) => {
             this.currentWord = '';
-            this.moves = [...this.moves, response.move];
             this.loadGame(gameId);
+            setTimeout(() => this.scrollToBottom(), 100);
           },
           error: (error: { message: string }) => {
             console.error('Error submitting word:', error);
@@ -316,23 +318,35 @@ export class GameBoardComponent implements OnInit, OnDestroy {
 
     this.computerPlayer.findWord(startLetter).subscribe({
       next: (word) => {
+        // Check if word is already used before validating with dictionary
+        if (this.isDuplicateWord(word)) {
+          console.log('Computer found duplicate word, trying again...');
+          this.isComputerMoveInProgress = false;
+          this.makeComputerMove();
+          return;
+        }
+
         this.wordService.getWordMeaning(word).subscribe({
           next: () => {
             this.gameService.submitMove(this.game!.id, 'computer', word).subscribe({
               next: (response) => {
-                this.moves = [...this.moves, response.move];
                 this.loadGame(this.game!.id);
                 this.isComputerMoveInProgress = false;
               },
               error: (error) => {
                 console.error('Computer move error:', error);
                 this.isComputerMoveInProgress = false;
+                // If error is due to duplicate word, try again
+                if (error.message?.includes('already been used')) {
+                  this.makeComputerMove();
+                }
               }
             });
           },
           error: () => {
-            this.makeComputerMove(); // Try another word if invalid
+            // Try another word if invalid or duplicate
             this.isComputerMoveInProgress = false;
+            this.makeComputerMove();
           }
         });
       },
@@ -341,6 +355,12 @@ export class GameBoardComponent implements OnInit, OnDestroy {
         this.isComputerMoveInProgress = false;
       }
     });
+  }
+
+  private scrollToBottom(): void {
+    try {
+      this.wordHistoryElement.nativeElement.scrollTop = this.wordHistoryElement.nativeElement.scrollHeight;
+    } catch(err) { }
   }
 
 }

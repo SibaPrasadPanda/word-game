@@ -38,7 +38,7 @@
 
   <div class="word-history">
     <h3>Word History</h3>
-    <div class="words-list">
+    <div class="words-list" #wordHistory>
       <div *ngFor="let move of moves" class="word-item" 
            [ngClass]="{'my-word': move.user_id === currentUserId}">
         <span class="word">{{ move.word }}</span>
