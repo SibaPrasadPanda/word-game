@@ -4,7 +4,6 @@
 
 // Create the theme
 
-
 // Include material core styles
 @include mat.core();
 
@@ -65,4 +64,42 @@ main {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #666;
+}
+
+/* Mobile optimizations */
+@media (max-width: 600px) {
+  .mat-mdc-dialog-container {
+    max-width: 90vw !important;
+    margin: 1rem;
+  }
+
+  .mat-mdc-button,
+  .mat-mdc-icon-button {
+    padding: 12px !important;
+    line-height: 24px !important;
+    min-height: 48px;
+  }
+
+  .mat-mdc-form-field {
+    font-size: 14px;
+  }
+}
+
+/* Touch-friendly buttons */
+button.mat-mdc-button,
+button.mat-mdc-raised-button,
+button.mat-mdc-icon-button {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+/* Improve form field spacing */
+.mat-mdc-form-field {
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+/* Better scrolling */
+* {
+  -webkit-overflow-scrolling: touch;
 }
