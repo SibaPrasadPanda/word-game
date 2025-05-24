@@ -22,6 +22,19 @@ export interface GameMove {
   created_at: Date;
 }
 
+export interface WordScore {
+  word: string;
+  baseScore: number;
+  bonusScore: number;
+  totalScore: number;
+}
+
+export interface PlayerScore {
+  userId: string;
+  words: WordScore[];
+  totalScore: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -58,5 +71,9 @@ export class GameService {
 
   createGameVsComputer(user_id: string): Observable<{ game: GameRoom; }> {
     return this.http.post<{ game: GameRoom }>(`${this.apiUrl}/create-vs-computer`, { user_id });
+  }
+
+  getGameScores(gameId: string): Observable<{ scores: { [key: string]: PlayerScore } }> {
+    return this.http.get<{ scores: { [key: string]: PlayerScore } }>(`${this.apiUrl}/${gameId}/scores`);
   }
 }

@@ -9,8 +9,28 @@
               {{ turnIndicator }}
             </div>
             <div class="player-info">
-              <div class="player-card">You: {{ currentUserId | slice:0:10 }}...</div>
-              <div class="player-card">Opponent: {{ opponentId | slice:0:10 }}...</div>
+              <div class="player-card">
+                <div>You: {{ currentUserId | slice:0:10 }}...</div>
+                <div class="score-info" *ngIf="playerScores[currentUserId]">
+                  <div class="total-score">Total Score: {{ playerScores[currentUserId].totalScore }}</div>
+                  <div class="word-scores">
+                    <div *ngFor="let word of playerScores[currentUserId].words" class="word-score">
+                      {{ word.word }} ({{ word.baseScore }} + {{ word.bonusScore }} bonus)
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="player-card" *ngIf="opponentId">
+                <div>Opponent: {{ opponentId | slice:0:10 }}...</div>
+                <div class="score-info" *ngIf="opponentId && playerScores[opponentId]">
+                  <div class="total-score">Total Score: {{ playerScores[opponentId].totalScore }}</div>
+                  <div class="word-scores">
+                    <div *ngFor="let word of playerScores[opponentId].words" class="word-score">
+                      {{ word.word }} ({{ word.baseScore }} + {{ word.bonusScore }} bonus)
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <div *ngIf="isGameEnded" class="game-end-banner" [class.winner]="isWinner">

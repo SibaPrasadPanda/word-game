@@ -25,4 +25,7 @@ router.post('/:gameId/end', gameController.endGame);
 // Create a game vs computer
 router.post('/create-vs-computer', gameController.createGameVsComputer);
 
+// Get game scores
+router.get('/:gameId/scores', gameController.getGameScores.bind(gameController));
+
 export default router;

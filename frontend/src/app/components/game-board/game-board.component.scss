@@ -478,3 +478,43 @@ $success: #10b981;
   }
 }
 
+.score-info {
+  margin-top: 10px;
+  font-size: 14px;
+
+  .total-score {
+    font-weight: bold;
+    color: whitesmoke;
+    margin-bottom: 5px;
+  }
+
+  .word-scores {
+    max-height: 100px;
+    overflow-y: auto;
+    
+    .word-score {
+      padding: 2px 5px;
+      margin: 2px 0;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      font-size: 12px;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+    }
+  }
+}
+
+.player-card {
+  padding: 10px;
+  margin: 5px 0;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.2);
+  }
+}
+

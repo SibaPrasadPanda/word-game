@@ -95,4 +95,14 @@ export class GameController {
             res.status(400).json({ error: error.message });
         }
     }
+
+    getGameScores = async (req: Request, res: Response) => {
+        try {
+            const gameId = req.params.gameId;
+            const scores = await gameService.calculateGameScores(gameId);
+            res.json({ scores });
+        } catch (error: any) {
+            res.status(500).json({ error: error.message });
+        }
+    }
 }

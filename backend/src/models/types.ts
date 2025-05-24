@@ -21,3 +21,16 @@ export interface GameRoom {
   winner_id: string | null;
   created_at: string;
 }
+
+export interface WordScore {
+  word: string;
+  baseScore: number;
+  bonusScore: number;
+  totalScore: number;
+}
+
+export interface PlayerScore {
+  userId: string;
+  words: WordScore[];
+  totalScore: number;
+}

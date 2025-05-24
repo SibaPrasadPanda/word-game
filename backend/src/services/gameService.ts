@@ -1,10 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { config } from '../config/config';
 import { socketService } from '../index';
+import { GameRoom, GameMove, WordScore, PlayerScore } from '../models/types';
 
 const supabase = createClient(config.supabaseUrl!, config.supabaseKey!);
-
-import { GameRoom, GameMove } from '../models/types';
 
 export class GameService {
   async createGame(user_id: string) {
@@ -246,5 +245,54 @@ export class GameService {
 
     if (error) throw error;
     return game;
+  }
+
+  private calculateWordScore(word: string): WordScore {
+    const baseScore = word.length;
+    let bonusScore = 0;
+    
+    // Bonus points for longer words
+    if (word.length >= 8) {
+      bonusScore = 5;
+    } else if (word.length >= 5) {
+      bonusScore = 3;
+    }
+
+    return {
+      word,
+      baseScore,
+      bonusScore,
+      totalScore: baseScore + bonusScore
+    };
+  }
+
+  async calculateGameScores(gameId: string): Promise<{ [key: string]: PlayerScore }> {
+    const { data: moves, error } = await supabase
+      .from('game_moves')
+      .select('*')
+      .eq('game_room_id', gameId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const scores: { [key: string]: PlayerScore } = {};
+
+    moves.forEach((move: GameMove) => {
+      if (!scores[move.user_id]) {
+        scores[move.user_id] = {
+          userId: move.user_id,
+          words: [],
+          totalScore: 0
+        };
+      }
+
+      const wordScore = this.calculateWordScore(move.word);
+      scores[move.user_id].words.push(wordScore);
+      scores[move.user_id].totalScore += wordScore.totalScore;
+    });
+
+    return scores;
   }
 }

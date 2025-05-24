@@ -8,7 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
 import { interval, Subject, Subscription } from 'rxjs';
 import { takeWhile, debounceTime, switchMap, catchError } from 'rxjs/operators';
-import { GameService, GameRoom, GameMove } from '../../services/game.service';
+import { GameService, GameRoom, GameMove, PlayerScore } from '../../services/game.service';
 import { WordService, WordMeaning } from '../../services/word.service';
 import { MatCard, MatCardContent } from '@angular/material/card';
 import { WordSearchComponent } from '../word-search/word-search.component';
@@ -49,6 +49,8 @@ export class GameBoardComponent implements OnInit, OnDestroy {
   private maxPollInterval = 10000; // Max 10 seconds
   private gameUpdateSubject = new Subject<string>();
   private movesUpdateSubject = new Subject<string>();
+  playerScores: { [key: string]: PlayerScore } = {};
+  scoresSubscription?: Subscription;
 
   constructor(
     private gameService: GameService,
@@ -70,12 +72,19 @@ export class GameBoardComponent implements OnInit, OnDestroy {
         this.setupWebSocket(gameId);
       }
     });
+
+    this.scoresSubscription = this.socketService.onGameUpdate().subscribe(() => {
+      this.updateScores();
+    });
   }
 
   ngOnDestroy() {
     this.socketService.disconnect();
     this.gameUpdateSubject.complete();
     this.movesUpdateSubject.complete();
+    if (this.scoresSubscription) {
+      this.scoresSubscription.unsubscribe();
+    }
   }
 
   private loadInitialData(gameId: string) {
@@ -144,6 +153,19 @@ export class GameBoardComponent implements OnInit, OnDestroy {
     this.socketService.onMovesUpdate().subscribe({
       next: (data) => {
         this.moves = data.moves;
+      }
+    });
+  }
+
+  private updateScores() {
+    if (!this.game) return;
+    
+    this.gameService.getGameScores(this.game.id).subscribe({
+      next: (response) => {
+        this.playerScores = response.scores;
+      },
+      error: (error) => {
+        console.error('Error fetching scores:', error);
       }
     });
   }
