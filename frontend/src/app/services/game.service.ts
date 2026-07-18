@@ -76,4 +76,8 @@ export class GameService {
   getGameScores(gameId: string): Observable<{ scores: { [key: string]: PlayerScore } }> {
     return this.http.get<{ scores: { [key: string]: PlayerScore } }>(`${this.apiUrl}/${gameId}/scores`);
   }
+
+  skipTurn(gameId: string, user_id: string): Observable<{ game: GameRoom }> {
+    return this.http.post<{ game: GameRoom }>(`${this.apiUrl}/${gameId}/skip`, { user_id });
+  }
 }

@@ -20,6 +20,10 @@ export class SocketService {
                 console.log(`Client ${socket.id} joined game ${gameId}`);
             });
 
+            socket.on('sendReaction', ({ gameId, emoji }) => {
+                this.io.to(`game_${gameId}`).emit('reactionReceived', { emoji });
+            });
+
             socket.on('disconnect', () => {
                 console.log('Client disconnected:', socket.id);
             });

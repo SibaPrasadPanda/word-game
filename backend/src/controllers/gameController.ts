@@ -1,9 +1,7 @@
 import { Request, Response } from 'express';
 import { GameService } from '../services/gameService';
-import { createClient } from '@supabase/supabase-js';
 import { config } from '../config/config';
-
-const supabase = createClient(config.supabaseUrl!, config.supabaseKey!);
+import { localDb } from '../services/localDb';
 
 const gameService = new GameService();
 
@@ -43,11 +41,7 @@ export class GameController {
     getGame = async (req: Request, res: Response) => {
         try {
             const { gameId } = req.params;
-            const { data: game } = await supabase
-                .from('game_rooms')
-                .select()
-                .eq('id', gameId)
-                .single();
+            const game = await localDb.getGameRoom(gameId);
 
             if (!game) {
                 return res.status(404).json({ error: 'Game not found' });
@@ -62,11 +56,7 @@ export class GameController {
     getMoves = async (req: Request, res: Response) => {
         try {
             const { gameId } = req.params;
-            const { data: moves } = await supabase
-                .from('game_moves')
-                .select()
-                .eq('game_room_id', gameId)
-                .order('created_at', { ascending: true });
+            const moves = await localDb.getGameMoves(gameId);
 
             res.json({ moves });
         } catch (error) {
@@ -91,6 +81,17 @@ export class GameController {
             const { user_id } = req.body;
             const game = await gameService.createGameVsComputer(user_id);
             res.status(201).json({ game });
+        } catch (error: any) {
+            res.status(400).json({ error: error.message });
+        }
+    }
+
+    skipTurn = async (req: Request, res: Response) => {
+        try {
+            const { gameId } = req.params;
+            const { user_id } = req.body;
+            const game = await gameService.skipTurn(gameId, user_id);
+            res.json({ game });
         } catch (error: any) {
             res.status(400).json({ error: error.message });
         }

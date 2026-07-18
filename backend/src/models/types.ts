@@ -20,6 +20,7 @@ export interface GameRoom {
   current_turn: string;
   winner_id: string | null;
   created_at: string;
+  is_vs_computer?: boolean;
 }
 
 export interface WordScore {

@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -25,6 +25,7 @@ import { LoadingService } from '../../services/loading.service';
   imports: [
     CommonModule,
     FormsModule,
+    RouterLink,
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
@@ -36,13 +37,16 @@ import { LoadingService } from '../../services/loading.service';
   ]
 })
 export class GameBoardComponent implements OnInit, OnDestroy {
-  @ViewChild('wordHistory') private wordHistoryElement!: ElementRef;
+  @ViewChild('scrollArea') private scrollAreaElement!: ElementRef;
   game: GameRoom | null = null;
   moves: GameMove[] = [];
   currentWord: string = '';
   currentWordMeaning: WordMeaning | null = null;
   currentUserId: string = '';
   private pollSubscription?: Subscription;
+  private gameUpdateSubscription?: Subscription;
+  private movesUpdateSubscription?: Subscription;
+  private scoresSubscription?: Subscription;
   errorMessage: string = '';
   private isComputerMoveInProgress = false;
   private pollInterval = 3000; // Start with 3 seconds
@@ -50,7 +54,23 @@ export class GameBoardComponent implements OnInit, OnDestroy {
   private gameUpdateSubject = new Subject<string>();
   private movesUpdateSubject = new Subject<string>();
   playerScores: { [key: string]: PlayerScore } = {};
-  scoresSubscription?: Subscription;
+
+  // Blitz Turn Timer
+  timeLeft: number = 15;
+  private timerInterval?: any;
+
+  // Tactical Power-Ups state
+  powerUps = {
+    skipUsed: false,
+    revealUsed: false,
+    freezeUsed: false
+  };
+  hints: string[] = [];
+
+  // Live Reactions floating state
+  reactions: { emoji: string; id: number; styleRight: number }[] = [];
+  private nextReactionId = 0;
+  private socketReactionSubscription?: Subscription;
 
   constructor(
     private gameService: GameService,
@@ -68,23 +88,30 @@ export class GameBoardComponent implements OnInit, OnDestroy {
     this.route.params.subscribe(params => {
       const gameId = params['id'];
       if (gameId) {
+        // Clear any previous state/timers first
+        this.clearTimer();
+        this.hints = [];
+        this.reactions = [];
+        this.errorMessage = '';
+        this.currentWord = '';
+        this.currentWordMeaning = null;
+
+        this.loadPowerUps(gameId);
         this.loadInitialData(gameId);
         this.setupWebSocket(gameId);
       }
     });
-
-    this.scoresSubscription = this.socketService.onGameUpdate().subscribe(() => {
-      this.updateScores();
-    });
   }
 
   ngOnDestroy() {
+    this.clearTimer();
     this.socketService.disconnect();
     this.gameUpdateSubject.complete();
     this.movesUpdateSubject.complete();
-    if (this.scoresSubscription) {
-      this.scoresSubscription.unsubscribe();
-    }
+    this.scoresSubscription?.unsubscribe();
+    this.gameUpdateSubscription?.unsubscribe();
+    this.movesUpdateSubscription?.unsubscribe();
+    this.socketReactionSubscription?.unsubscribe();
   }
 
   private loadInitialData(gameId: string) {
@@ -96,7 +123,14 @@ export class GameBoardComponent implements OnInit, OnDestroy {
     this.loadingService.setLoading(true);
     this.gameService.getGame(gameId).subscribe({
       next: (response) => {
+        if (response.game.status === 'FINISHED' && response.game.winner_id === this.currentUserId) {
+          if (!this.game || this.game.status !== 'FINISHED') {
+            this.triggerConfetti();
+          }
+        }
+
         this.game = response.game;
+        this.handleTurnChange();
 
         // Make computer move if it's computer's turn
         if (this.game.is_vs_computer && !this.isYourTurn && !this.isGameEnded) {
@@ -129,6 +163,7 @@ export class GameBoardComponent implements OnInit, OnDestroy {
     this.gameService.getMoves(gameId).subscribe({
       next: (response) => {
         this.moves = response.moves;
+        this.handleTurnChange();
         setTimeout(() => this.scrollToBottom(), 100);
       },
       error: (error: { message: string }) => console.error('Error loading moves:', error)
@@ -136,11 +171,24 @@ export class GameBoardComponent implements OnInit, OnDestroy {
   }
 
   private setupWebSocket(gameId: string) {
+    // Unsubscribe from previous subscriptions to avoid duplicate event calls
+    this.gameUpdateSubscription?.unsubscribe();
+    this.movesUpdateSubscription?.unsubscribe();
+    this.scoresSubscription?.unsubscribe();
+    this.socketReactionSubscription?.unsubscribe();
+
     this.socketService.joinGame(gameId);
     
-    this.socketService.onGameUpdate().subscribe({
+    this.gameUpdateSubscription = this.socketService.onGameUpdate().subscribe({
       next: (data) => {
+        if (data.game.status === 'FINISHED' && data.game.winner_id === this.currentUserId) {
+          if (!this.game || this.game.status !== 'FINISHED') {
+            this.triggerConfetti();
+          }
+        }
+
         this.game = data.game;
+        this.handleTurnChange();
         
         if (this.game?.is_vs_computer && !this.isYourTurn && !this.isGameEnded) {
           if (!this.isComputerMoveInProgress) {
@@ -150,9 +198,20 @@ export class GameBoardComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.socketService.onMovesUpdate().subscribe({
+    this.movesUpdateSubscription = this.socketService.onMovesUpdate().subscribe({
       next: (data) => {
         this.moves = data.moves;
+        this.handleTurnChange();
+      }
+    });
+
+    this.scoresSubscription = this.socketService.onGameUpdate().subscribe(() => {
+      this.updateScores();
+    });
+
+    this.socketReactionSubscription = this.socketService.onReactionReceived().subscribe({
+      next: (data) => {
+        this.showReaction(data.emoji);
       }
     });
   }
@@ -284,6 +343,10 @@ export class GameBoardComponent implements OnInit, OnDestroy {
   }
 
   lookupWord(word: string) {
+    if (this.currentWordMeaning && this.currentWordMeaning.word.toLowerCase() === word.toLowerCase()) {
+      this.currentWordMeaning = null;
+      return;
+    }
     this.loadingService.setLoading(true);
     this.wordService.getWordMeaning(word).subscribe({
       next: (meaning) => {
@@ -336,12 +399,24 @@ export class GameBoardComponent implements OnInit, OnDestroy {
   }
 
   startNewGame() {
-    this.gameService.createGame(this.currentUserId).subscribe({
-      next: (response) => {
-        this.router.navigate(['/game', response.game.id]);
-      },
-      error: (error) => this.showError('Failed to create new game')
-    });
+    const isVsComputer = this.game?.is_vs_computer || false;
+    this.clearTimer();
+
+    if (isVsComputer) {
+      this.gameService.createGameVsComputer(this.currentUserId).subscribe({
+        next: (response) => {
+          this.router.navigate(['/game', response.game.id]);
+        },
+        error: (error) => this.showError('Failed to create new game')
+      });
+    } else {
+      this.gameService.createGame(this.currentUserId).subscribe({
+        next: (response) => {
+          this.router.navigate(['/game', response.game.id]);
+        },
+        error: (error) => this.showError('Failed to create new game')
+      });
+    }
   }
 
   private makeComputerMove() {
@@ -397,8 +472,182 @@ export class GameBoardComponent implements OnInit, OnDestroy {
 
   private scrollToBottom(): void {
     try {
-      this.wordHistoryElement.nativeElement.scrollTop = this.wordHistoryElement.nativeElement.scrollHeight;
+      this.scrollAreaElement.nativeElement.scrollTop = this.scrollAreaElement.nativeElement.scrollHeight;
     } catch(err) { }
   }
 
+  // Blitz Timer & Turn Helpers
+  private handleTurnChange() {
+    this.clearTimer();
+    this.hints = []; // Clear hints on turn change
+
+    if (!this.game || this.isGameEnded) return;
+
+    if (this.isYourTurn) {
+      this.timeLeft = 15;
+      this.timerInterval = setInterval(() => {
+        this.timeLeft--;
+        if (this.timeLeft <= 0) {
+          this.clearTimer();
+          this.handleTimeOut();
+        }
+      }, 1000);
+    }
+  }
+
+  private clearTimer() {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = undefined;
+    }
+  }
+
+  private handleTimeOut() {
+    this.showError('Time is up! You lost the match.');
+    this.surrender();
+  }
+
+  // Tactical Power-Ups
+  usePowerUp(type: 'skip' | 'reveal' | 'freeze') {
+    if (!this.game || this.isGameEnded || !this.isYourTurn) return;
+
+    if (type === 'skip' && !this.powerUps.skipUsed) {
+      this.gameService.skipTurn(this.game.id, this.currentUserId).subscribe({
+        next: (response) => {
+          this.powerUps.skipUsed = true;
+          this.savePowerUps();
+          this.loadGame(this.game!.id);
+        },
+        error: (err) => this.showError('Failed to skip turn: ' + err.message)
+      });
+    } else if (type === 'freeze' && !this.powerUps.freezeUsed) {
+      this.timeLeft += 10;
+      this.powerUps.freezeUsed = true;
+      this.savePowerUps();
+    } else if (type === 'reveal' && !this.powerUps.revealUsed) {
+      const lastWord = this.moves.length > 0 ? this.moves[this.moves.length - 1].word : '';
+      const startLetter = lastWord ? lastWord.charAt(lastWord.length - 1) : 'a';
+
+      this.computerPlayer.findHints(startLetter).subscribe({
+        next: (wordHints) => {
+          this.hints = wordHints;
+          this.powerUps.revealUsed = true;
+          this.savePowerUps();
+        },
+        error: () => this.showError('Could not retrieve hints')
+      });
+    }
+  }
+
+  useHint(hintWord: string) {
+    this.currentWord = hintWord;
+    this.hints = [];
+  }
+
+  private loadPowerUps(gameId: string) {
+    const data = localStorage.getItem(`powerups_${gameId}`);
+    if (data) {
+      this.powerUps = JSON.parse(data);
+    } else {
+      this.powerUps = {
+        skipUsed: false,
+        revealUsed: false,
+        freezeUsed: false
+      };
+    }
+  }
+
+  private savePowerUps() {
+    if (this.game) {
+      localStorage.setItem(`powerups_${this.game.id}`, JSON.stringify(this.powerUps));
+    }
+  }
+
+  // Live Reactions
+  sendEmoji(emoji: string) {
+    if (!this.game) return;
+    this.socketService.sendReaction(this.game.id, emoji);
+    this.showReaction(emoji);
+  }
+
+  private showReaction(emoji: string) {
+    const reactionId = this.nextReactionId++;
+    const styleRight = Math.floor(Math.random() * 40) + 10; // Random offset between 10px and 50px
+    this.reactions.push({ emoji, id: reactionId, styleRight });
+
+    setTimeout(() => {
+      this.reactions = this.reactions.filter(r => r.id !== reactionId);
+    }, 2500);
+  }
+
+  // Confetti Animation
+  triggerConfetti() {
+    const canvas = document.createElement('canvas');
+    canvas.style.position = 'fixed';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.width = '100vw';
+    canvas.style.height = '100vh';
+    canvas.style.pointerEvents = 'none';
+    canvas.style.zIndex = '9999';
+    document.body.appendChild(canvas);
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const colors = ['#0071e3', '#34c759', '#ff3b30', '#ff9500', '#af52de', '#ffcc00'];
+    const particles: any[] = [];
+
+    for (let i = 0; i < 150; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height - canvas.height,
+        r: Math.random() * 6 + 4,
+        d: Math.random() * canvas.height,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        tilt: Math.random() * 10 - 5,
+        tiltAngleIncremental: Math.random() * 0.07 + 0.02,
+        tiltAngle: 0
+      });
+    }
+
+    let animationFrameId: number;
+    const duration = 4000; // 4 seconds of confetti
+    const startTime = Date.now();
+
+    const draw = () => {
+      if (Date.now() - startTime > duration) {
+        cancelAnimationFrame(animationFrameId);
+        canvas.remove();
+        return;
+      }
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      particles.forEach((p, idx) => {
+        p.tiltAngle += p.tiltAngleIncremental;
+        p.y += (Math.cos(p.d) + 3 + p.r / 2) / 2;
+        p.tilt = Math.sin(p.tiltAngle - idx / 3) * 15;
+
+        ctx.beginPath();
+        ctx.lineWidth = p.r;
+        ctx.strokeStyle = p.color;
+        ctx.moveTo(p.x + p.tilt + p.r / 2, p.y);
+        ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r / 2);
+        ctx.stroke();
+
+        if (p.y > canvas.height) {
+          p.x = Math.random() * canvas.width;
+          p.y = -20;
+        }
+      });
+
+      animationFrameId = requestAnimationFrame(draw);
+    };
+
+    draw();
+  }
 }

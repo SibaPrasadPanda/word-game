@@ -1,44 +1,17 @@
-import { createClient } from '@supabase/supabase-js';
 import { config } from '../config/config';
 import { socketService } from '../index';
 import { GameRoom, GameMove, WordScore, PlayerScore } from '../models/types';
-
-const supabase = createClient(config.supabaseUrl!, config.supabaseKey!);
+import { localDb } from './localDb';
 
 export class GameService {
   async createGame(user_id: string) {
-    const { data: game, error } = await supabase
-      .from('game_rooms')
-      .insert([
-        {
-          player1_id: user_id,
-          status: 'WAITING',
-          current_turn: user_id
-        }
-      ])
-      .select()
-      .single();
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    return game;
+    return await localDb.createGameRoom(user_id, false);
   }
 
   async joinGame(gameId: string, player2Id: string): Promise<GameRoom> {
     try {
       // First check if the game exists and is available to join
-      const { data: existingGame, error: fetchError } = await supabase
-        .from('game_rooms')
-        .select()
-        .eq('id', gameId)
-        .single();
-
-      if (fetchError) {
-        console.error('Fetch game error:', fetchError);
-        throw new Error('Game not found');
-      }
+      const existingGame = await localDb.getGameRoom(gameId);
 
       if (!existingGame) {
         throw new Error('Game not found');
@@ -53,26 +26,11 @@ export class GameService {
       }
 
       // Update game room with new player
-      const { data: updatedGame, error: updateError } = await supabase
-        .from('game_rooms')
-        .update({
-          player2_id: player2Id,
-          status: 'ONGOING',
-          current_turn: existingGame.player1_id // Set turn back to player 1
-        })
-        .eq('id', gameId)
-        .eq('status', 'WAITING') // Additional check
-        .select()
-        .single();
-
-      if (updateError) {
-        console.error('Update game error:', updateError);
-        throw new Error(`Failed to update game: ${updateError.message}`);
-      }
-
-      if (!updatedGame) {
-        throw new Error('Game not found or already joined');
-      }
+      const updatedGame = await localDb.updateGameRoom(gameId, {
+        player2_id: player2Id,
+        status: 'ONGOING',
+        current_turn: existingGame.player1_id // Set turn back to player 1
+      });
 
       return updatedGame;
 
@@ -88,11 +46,7 @@ export class GameService {
         await this.validateMove(gameId, word);
 
         // Get current game state
-        const { data: game } = await supabase
-            .from('game_rooms')
-            .select('*')
-            .eq('id', gameId)
-            .single();
+        const game = await localDb.getGameRoom(gameId);
 
         if (!game) {
             throw new Error('Game not found');
@@ -100,40 +54,19 @@ export class GameService {
 
         // For computer games, update turn to player1
         if (game.is_vs_computer) {
-            await supabase
-                .from('game_rooms')
-                .update({ current_turn: game.player1_id })
-                .eq('id', gameId);
+            await localDb.updateGameRoom(gameId, { current_turn: game.player1_id });
         }
 
         // Insert the move
-        const { data: move, error: moveError } = await supabase
-            .from('game_moves')
-            .insert([{
-                game_room_id: gameId,
-                user_id,
-                word
-            }])
-            .select()
-            .single();
-
-        if (moveError) throw moveError;
+        const move = await localDb.createGameMove(gameId, user_id, word);
 
         // Notify clients about the new move
-        const { data: moves } = await supabase
-            .from('game_moves')
-            .select()
-            .eq('game_room_id', gameId)
-            .order('created_at', { ascending: true });
+        const moves = await localDb.getGameMoves(gameId);
 
         socketService.notifyMovesUpdate(gameId, { moves });
 
         // Update game state and notify
-        const { data: updatedGame } = await supabase
-            .from('game_rooms')
-            .select()
-            .eq('id', gameId)
-            .single();
+        const updatedGame = await localDb.getGameRoom(gameId);
 
         socketService.notifyGameUpdate(gameId, { game: updatedGame });
 
@@ -145,25 +78,14 @@ export class GameService {
 }
 
   private async validateMove(gameId: string, word: string): Promise<void> {
-    const { data: existingMoves, error: movesError } = await supabase
-      .from('game_moves')
-      .select('word')
-      .eq('game_room_id', gameId)
-      .eq('word', word.toLowerCase());
-
-    if (movesError) throw movesError;
+    const existingMoves = await localDb.getGameMovesByWord(gameId, word);
 
     if (existingMoves && existingMoves.length > 0) {
       throw new Error('This word has already been used in this game');
     }
     // Get last move
-    const { data: lastMove } = await supabase
-      .from('game_moves')
-      .select()
-      .eq('game_room_id', gameId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+    const moves = await localDb.getGameMoves(gameId);
+    const lastMove = moves.length > 0 ? moves[moves.length - 1] : null;
 
     if (lastMove) {
       // Check if word starts with last letter of previous word
@@ -173,78 +95,44 @@ export class GameService {
       }
     }
 
-    // Check if word has been used before in this game
-    const { data: existingMove } = await supabase
-      .from('game_moves')
-      .select()
-      .eq('game_room_id', gameId)
-      .eq('word', word)
-      .single();
-
-    if (existingMove) {
-      throw new Error('Word has already been used in this game');
-    }
-
     // TODO: Add dictionary API validation
   }
 
   private async updateGameTurn(gameId: string, currentUserId: string): Promise<void> {
-    const { data: gameRoom } = await supabase
-      .from('game_rooms')
-      .select()
-      .eq('id', gameId)
-      .single();
+    const gameRoom = await localDb.getGameRoom(gameId);
 
     if (!gameRoom) throw new Error('Game not found');
 
-    const nextTurn = gameRoom.player1_id === currentUserId ? gameRoom.player2_id : gameRoom.player1_id;
+    const nextTurn = gameRoom.player1_id === currentUserId ? gameRoom.player2_id || '' : gameRoom.player1_id;
 
-    await supabase
-      .from('game_rooms')
-      .update({ current_turn: nextTurn })
-      .eq('id', gameId);
+    await localDb.updateGameRoom(gameId, { current_turn: nextTurn });
   }
 
   async endGame(gameId: string, winnerId: string): Promise<void> {
-    const { error } = await supabase
-      .from('game_rooms')
-      .update({
-        status: 'FINISHED',
-        winner_id: winnerId
-      })
-      .eq('id', gameId);
+    const game = await localDb.updateGameRoom(gameId, {
+      status: 'FINISHED',
+      winner_id: winnerId
+    });
     console.log('winnerId', winnerId);
 
-    if (error) {
-      console.error('End game error:', error);
-      throw new Error('Failed to end game');
-    }
-
     // Notify clients about game end
-    const { data: game } = await supabase
-      .from('game_rooms')
-      .select()
-      .eq('id', gameId)
-      .single();
-
     socketService.notifyGameUpdate(gameId, { game });
   }
 
   async createGameVsComputer(user_id: string): Promise<GameRoom> {
-    const { data: game, error } = await supabase
-      .from('game_rooms')
-      .insert({
-        player1_id: user_id,
-        player2_id: 'computer',
-        status: 'ONGOING',
-        is_vs_computer: true,
-        current_turn: user_id
-      })
-      .select()
-      .single();
+    return await localDb.createGameRoom(user_id, true);
+  }
 
-    if (error) throw error;
-    return game;
+  async skipTurn(gameId: string, user_id: string): Promise<GameRoom> {
+    const game = await localDb.getGameRoom(gameId);
+    if (!game) throw new Error('Game not found');
+    if (game.current_turn !== user_id) throw new Error('Not your turn');
+
+    const nextTurn = game.player1_id === user_id ? game.player2_id || '' : game.player1_id;
+    const updatedGame = await localDb.updateGameRoom(gameId, { current_turn: nextTurn });
+
+    socketService.notifyGameUpdate(gameId, { game: updatedGame });
+    return updatedGame;
   }
 
   private calculateWordScore(word: string): WordScore {
@@ -267,15 +155,7 @@ export class GameService {
   }
 
   async calculateGameScores(gameId: string): Promise<{ [key: string]: PlayerScore }> {
-    const { data: moves, error } = await supabase
-      .from('game_moves')
-      .select('*')
-      .eq('game_room_id', gameId)
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      throw new Error(error.message);
-    }
+    const moves = await localDb.getGameMoves(gameId);
 
     const scores: { [key: string]: PlayerScore } = {};
 

@@ -5,24 +5,28 @@
     {{ errorMessage }}
   </div>
 
-  <h1>Word Chain Game</h1>
+  <div class="hero">
+    <h1>Word Chain</h1>
+    <p class="subtitle">A minimalist real-time vocabulary game.</p>
+  </div>
 
   <div class="game-options">
-    <button mat-raised-button color="primary" (click)="createGame()">
-      Play with Friend
-    </button>
-    <button mat-raised-button color="accent" (click)="createGameVsComputer()">
+    <button class="apple-btn primary" (click)="createGameVsComputer()">
       Play vs Computer
+    </button>
+    <button class="apple-btn secondary" (click)="createGame()">
+      Play with Friend
     </button>
   </div>
 
+  <div class="divider-line"><span>or join a game</span></div>
+
   <div class="join-game-form">
-    <mat-form-field appearance="outline">
-      <mat-label>Enter game link or ID</mat-label>
-      <input matInput [(ngModel)]="gameLink" placeholder="Paste game link here">
-      <button mat-icon-button matSuffix (click)="joinGame()" [disabled]="!gameLink">
-        <mat-icon>play_arrow</mat-icon>
+    <div class="input-group">
+      <input type="text" [(ngModel)]="gameLink" placeholder="Enter game link or ID" class="apple-input">
+      <button class="apple-btn primary join-btn" (click)="joinGame()" [disabled]="!gameLink">
+        Join
       </button>
-    </mat-form-field>
+    </div>
   </div>
 </div>

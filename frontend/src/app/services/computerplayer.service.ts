@@ -60,6 +60,25 @@ export class ComputerplayerService {
     );
   }
 
+  findHints(startsWith: string): Observable<string[]> {
+    const letter = startsWith.toLowerCase();
+    return this.http.get<any[]>(`${this.dataMuseUrl}?sp=${letter}*&max=50`).pipe(
+      map(words => {
+        if (words.length > 0) {
+          // Pick up to 3 random words
+          const shuffled = words.sort(() => 0.5 - Math.random());
+          return shuffled.slice(0, 3).map(w => w.word);
+        }
+        const fallbacks = this.commonWords[letter] || [];
+        return fallbacks.slice(0, 3);
+      }),
+      catchError(() => {
+        const fallbacks = this.commonWords[letter] || [];
+        return of(fallbacks.slice(0, 3));
+      })
+    );
+  }
+
   private getFallbackWord(letter: string): Observable<string> {
     // Get words from our fallback dictionary for this letter
     const fallbackWords = this.commonWords[letter] || [];

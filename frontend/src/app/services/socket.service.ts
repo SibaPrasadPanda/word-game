@@ -38,4 +38,16 @@ export class SocketService {
       this.socket.disconnect();
     }
   }
+
+  sendReaction(gameId: string, emoji: string): void {
+    this.socket.emit('sendReaction', { gameId, emoji });
+  }
+
+  onReactionReceived(): Observable<any> {
+    return new Observable(observer => {
+      this.socket.on('reactionReceived', (data) => {
+        observer.next(data);
+      });
+    });
+  }
 }

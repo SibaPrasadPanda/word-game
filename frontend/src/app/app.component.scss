@@ -1,0 +1,39 @@
+.nav-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.nav-title {
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: -0.2px;
+  cursor: pointer;
+}
+
+.theme-toggle-btn {
+  background: transparent;
+  border: none;
+  color: var(--apple-text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 50%;
+  transition: var(--apple-transition);
+
+  &:hover {
+    background: var(--apple-border);
+  }
+
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+}
