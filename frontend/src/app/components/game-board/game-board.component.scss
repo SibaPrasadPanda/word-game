@@ -200,6 +200,27 @@
   border-radius: 12px !important;
   font-size: 16px !important;
   background: var(--apple-bg) !important;
+  color: var(--apple-text-primary) !important;
+  caret-color: var(--apple-accent) !important;
+  border: 1px solid var(--apple-border) !important;
+  padding: 0 14px !important;
+  outline: none !important;
+  flex: 1;
+
+  &::placeholder {
+    color: var(--apple-text-secondary) !important;
+    opacity: 1;
+  }
+
+  &:focus {
+    border-color: var(--apple-accent) !important;
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.12) !important;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
 }
 
 .submit-word-btn {
@@ -676,5 +697,38 @@
       border-style: solid;
       transform: scale(1.02);
     }
+  }
+}
+
+.error-message-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 59, 48, 0.1);
+  color: #ff453a;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid rgba(255, 59, 48, 0.2);
+  margin-bottom: 8px;
+  animation: slideUpError 0.2s ease-out;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: #ff453a;
+  }
+}
+
+@keyframes slideUpError {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

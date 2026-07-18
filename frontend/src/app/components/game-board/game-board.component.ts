@@ -38,6 +38,7 @@ import { LoadingService } from '../../services/loading.service';
 })
 export class GameBoardComponent implements OnInit, OnDestroy {
   @ViewChild('scrollArea') private scrollAreaElement!: ElementRef;
+  @ViewChild('wordInput') private wordInputElement!: ElementRef<HTMLInputElement>;
   game: GameRoom | null = null;
   moves: GameMove[] = [];
   currentWord: string = '';
@@ -291,7 +292,13 @@ export class GameBoardComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const word = this.currentWord.toLowerCase();
+    const word = this.currentWord.toLowerCase().trim();
+
+    // Client-side: minimum length guard (instant feedback, no network round-trip)
+    if (word.length < 3) {
+      this.showError('Word must be at least 3 letters long');
+      return;
+    }
 
     // Check if word starts with last letter of previous word
     if (!this.validateWordChain(word)) {
@@ -318,9 +325,11 @@ export class GameBoardComponent implements OnInit, OnDestroy {
             setTimeout(() => this.scrollToBottom(), 100);
             this.loadingService.setLoading(false);
           },
-          error: (error: { message: string }) => {
+          error: (error: any) => {
             console.error('Error submitting word:', error);
-            this.showError(error.message);
+            // Angular HttpErrorResponse: server body is in error.error
+            const msg = error?.error?.error || error?.error?.message || error?.message || 'Failed to submit word';
+            this.showError(msg);
             this.loadingService.setLoading(false);
           }
         });
@@ -492,6 +501,10 @@ export class GameBoardComponent implements OnInit, OnDestroy {
           this.handleTimeOut();
         }
       }, 1000);
+      // Auto-focus the input so the player can type immediately
+      setTimeout(() => {
+        this.wordInputElement?.nativeElement?.focus();
+      }, 150);
     }
   }
 

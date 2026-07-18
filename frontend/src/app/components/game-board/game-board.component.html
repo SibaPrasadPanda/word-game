@@ -67,9 +67,6 @@
 
     <!-- Center Scrollable Content -->
     <div class="game-scroll-area" #scrollArea>
-      <div *ngIf="errorMessage" class="error-message">
-        {{ errorMessage }}
-      </div>
 
       <!-- Word History Section -->
       <div class="word-history" *ngIf="moves.length > 0">
@@ -139,6 +136,12 @@
 
     <!-- Footer: Input Form -->
     <div class="word-input-section">
+      <!-- Error Message Banner (Fixed inline in input section) -->
+      <div *ngIf="errorMessage" class="error-message-inline">
+        <mat-icon>warning</mat-icon>
+        <span>{{ errorMessage }}</span>
+      </div>
+
       <!-- Power-Ups & Reaction HUD Row -->
       <div class="hud-row" *ngIf="!isGameEnded">
         <!-- Power-Ups HUD -->
@@ -175,7 +178,8 @@
       </div>
 
       <div class="input-group">
-        <input type="text" 
+        <input type="text"
+               #wordInput
                [(ngModel)]="currentWord"
                [placeholder]="getWordHint()"
                [disabled]="!isYourTurn || isGameEnded"
