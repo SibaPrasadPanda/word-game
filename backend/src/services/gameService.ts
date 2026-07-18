@@ -78,6 +78,14 @@ export class GameService {
 }
 
   private async validateMove(gameId: string, word: string): Promise<void> {
+    if (!word || word.trim().length < 3) {
+      throw new Error('Word must be at least 3 letters long');
+    }
+
+    if (!/^[a-zA-Z]+$/.test(word)) {
+      throw new Error('Word must contain only alphabetic characters');
+    }
+
     const existingMoves = await localDb.getGameMovesByWord(gameId, word);
 
     if (existingMoves && existingMoves.length > 0) {
@@ -94,8 +102,6 @@ export class GameService {
         throw new Error('Word must start with the last letter of the previous word');
       }
     }
-
-    // TODO: Add dictionary API validation
   }
 
   private async updateGameTurn(gameId: string, currentUserId: string): Promise<void> {

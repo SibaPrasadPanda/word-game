@@ -46,12 +46,16 @@ export class ComputerplayerService {
   findWord(startsWith: string): Observable<string> {
     const letter = startsWith.toLowerCase();
     
-    // Try DataMuse API first
-    return this.http.get<any[]>(`${this.dataMuseUrl}?sp=${letter}*&max=50`).pipe(
+    // Try DataMuse API first with a larger limit to get a good pool of candidates
+    return this.http.get<any[]>(`${this.dataMuseUrl}?sp=${letter}*&max=100`).pipe(
       switchMap(words => {
-        if (words.length > 0) {
-          const randomIndex = Math.floor(Math.random() * words.length);
-          return of(words[randomIndex].word);
+        const validWords = words
+          .map(w => w.word.toLowerCase())
+          .filter(w => /^[a-z]{3,}$/.test(w)); // Must be purely letters and at least 3 chars long
+
+        if (validWords.length > 0) {
+          const randomIndex = Math.floor(Math.random() * validWords.length);
+          return of(validWords[randomIndex]);
         }
         // If DataMuse fails, use fallback words
         return this.getFallbackWord(letter);
@@ -62,12 +66,16 @@ export class ComputerplayerService {
 
   findHints(startsWith: string): Observable<string[]> {
     const letter = startsWith.toLowerCase();
-    return this.http.get<any[]>(`${this.dataMuseUrl}?sp=${letter}*&max=50`).pipe(
+    return this.http.get<any[]>(`${this.dataMuseUrl}?sp=${letter}*&max=100`).pipe(
       map(words => {
-        if (words.length > 0) {
+        const validWords = words
+          .map(w => w.word.toLowerCase())
+          .filter(w => /^[a-z]{3,}$/.test(w)); // Must be purely letters and at least 3 chars long
+
+        if (validWords.length > 0) {
           // Pick up to 3 random words
-          const shuffled = words.sort(() => 0.5 - Math.random());
-          return shuffled.slice(0, 3).map(w => w.word);
+          const shuffled = validWords.sort(() => 0.5 - Math.random());
+          return shuffled.slice(0, 3);
         }
         const fallbacks = this.commonWords[letter] || [];
         return fallbacks.slice(0, 3);
