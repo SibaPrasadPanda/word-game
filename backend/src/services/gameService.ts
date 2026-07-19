@@ -43,13 +43,10 @@ export class GameService {
         // Get game first so we can check difficulty
         const game = await localDb.getGameRoom(gameId);
         if (!game) throw new Error('Game not found');
+        if (game.status === 'FINISHED') throw new Error('Game is already finished');
 
         // Validate the move (passes difficulty for min length check)
         await this.validateMove(gameId, word, game.difficulty || 'normal');
-
-        // Update turn accurately
-        const nextTurn = user_id === game.player1_id ? (game.player2_id || 'computer') : game.player1_id;
-        await localDb.updateGameRoom(gameId, { current_turn: nextTurn });
 
         // Insert the move
         const move = await localDb.createGameMove(gameId, user_id, word);
@@ -69,10 +66,13 @@ export class GameService {
             if (totalScore >= game.target_score) {
                 // End game immediately, user won!
                 await this.endGame(gameId, user_id);
-
                 return move;
             }
         }
+
+        // Update turn accurately only if game is not finished
+        const nextTurn = user_id === game.player1_id ? (game.player2_id || 'computer') : game.player1_id;
+        await localDb.updateGameRoom(gameId, { current_turn: nextTurn });
 
         // Notify clients about the new move
 

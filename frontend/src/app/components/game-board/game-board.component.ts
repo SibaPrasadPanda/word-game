@@ -469,6 +469,7 @@ export class GameBoardComponent implements OnInit, OnDestroy {
 
   private makeComputerMove() {
     if (!this.game || !this.moves.length || this.isComputerMoveInProgress) return;
+    if (this.game.status === 'FINISHED') return;
     if (this.isYourTurn) return; // Strict guard against moving during user's turn
 
     this.isComputerMoveInProgress = true;
@@ -528,6 +529,7 @@ export class GameBoardComponent implements OnInit, OnDestroy {
   // Blitz Timer & Turn Helpers
   private handleTurnChange() {
     this.clearTimer();
+    if (this.computerMoveTimer) clearTimeout(this.computerMoveTimer);
     this.hints = []; // Clear hints on turn change
 
     if (!this.game || this.isGameEnded) return;
