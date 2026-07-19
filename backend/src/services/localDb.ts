@@ -9,6 +9,7 @@ if (!getApps().length) {
   });
 }
 const db = getFirestore();
+db.settings({ ignoreUndefinedProperties: true });
 
 class LocalDb {
   async createGameRoom(player1_id: string, is_vs_computer = false, difficulty: Difficulty = 'normal', target_score?: number): Promise<GameRoom> {
