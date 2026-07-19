@@ -1,16 +1,15 @@
 import { config } from '../config/config';
 import { socketService } from '../index';
-import { GameRoom, GameMove, WordScore, PlayerScore } from '../models/types';
+import { GameRoom, GameMove, WordScore, PlayerScore, Difficulty, DIFFICULTY_CONFIG } from '../models/types';
 import { localDb } from './localDb';
 
 export class GameService {
-  async createGame(user_id: string) {
-    return await localDb.createGameRoom(user_id, false);
+  async createGame(user_id: string, targetScore?: number) {
+    return await localDb.createGameRoom(user_id, false, 'normal', targetScore);
   }
 
   async joinGame(gameId: string, player2Id: string): Promise<GameRoom> {
     try {
-      // First check if the game exists and is available to join
       const existingGame = await localDb.getGameRoom(gameId);
 
       if (!existingGame) {
@@ -25,11 +24,10 @@ export class GameService {
         throw new Error('Cannot join your own game');
       }
 
-      // Update game room with new player
       const updatedGame = await localDb.updateGameRoom(gameId, {
         player2_id: player2Id,
         status: 'ONGOING',
-        current_turn: existingGame.player1_id // Set turn back to player 1
+        current_turn: existingGame.player1_id
       });
 
       return updatedGame;
@@ -42,32 +40,45 @@ export class GameService {
 
   async submitMove(gameId: string, user_id: string, word: string): Promise<GameMove> {
     try {
-        // First validate the move
-        await this.validateMove(gameId, word);
-
-        // Get current game state
+        // Get game first so we can check difficulty
         const game = await localDb.getGameRoom(gameId);
+        if (!game) throw new Error('Game not found');
 
-        if (!game) {
-            throw new Error('Game not found');
-        }
+        // Validate the move (passes difficulty for min length check)
+        await this.validateMove(gameId, word, game.difficulty || 'normal');
 
-        // For computer games, update turn to player1
-        if (game.is_vs_computer) {
-            await localDb.updateGameRoom(gameId, { current_turn: game.player1_id });
-        }
+        // Update turn accurately
+        const nextTurn = user_id === game.player1_id ? (game.player2_id || 'computer') : game.player1_id;
+        await localDb.updateGameRoom(gameId, { current_turn: nextTurn });
 
         // Insert the move
         const move = await localDb.createGameMove(gameId, user_id, word);
 
-        // Notify clients about the new move
         const moves = await localDb.getGameMoves(gameId);
+        
+        // Check for target score win condition
+        if (game.target_score) {
+            let totalScore = 0;
+            for (const m of moves) {
+                if (m.user_id === user_id) {
+                    const wordScore = this.calculateWordScore(m.word, game.difficulty || 'normal');
+                    totalScore += wordScore.totalScore;
+                }
+            }
+            
+            if (totalScore >= game.target_score) {
+                // End game immediately, user won!
+                await this.endGame(gameId, user_id);
+                socketService.notifyMovesUpdate(gameId, { moves });
+                return move;
+            }
+        }
 
+        // Notify clients about the new move
         socketService.notifyMovesUpdate(gameId, { moves });
 
         // Update game state and notify
         const updatedGame = await localDb.getGameRoom(gameId);
-
         socketService.notifyGameUpdate(gameId, { game: updatedGame });
 
         return move;
@@ -75,11 +86,14 @@ export class GameService {
         console.error('Submit move error:', error);
         throw error;
     }
-}
+  }
 
-  private async validateMove(gameId: string, word: string): Promise<void> {
-    if (!word || word.trim().length < 3) {
-      throw new Error('Word must be at least 3 letters long');
+  private async validateMove(gameId: string, word: string, difficulty: Difficulty = 'normal'): Promise<void> {
+    const settings = DIFFICULTY_CONFIG[difficulty];
+    const minLen = settings.minWordLength;
+
+    if (!word || word.trim().length < minLen) {
+      throw new Error(`Word must be at least ${minLen} letters long`);
     }
 
     if (!/^[a-zA-Z]+$/.test(word)) {
@@ -87,16 +101,14 @@ export class GameService {
     }
 
     const existingMoves = await localDb.getGameMovesByWord(gameId, word);
-
     if (existingMoves && existingMoves.length > 0) {
       throw new Error('This word has already been used in this game');
     }
-    // Get last move
+
     const moves = await localDb.getGameMoves(gameId);
     const lastMove = moves.length > 0 ? moves[moves.length - 1] : null;
 
     if (lastMove) {
-      // Check if word starts with last letter of previous word
       const lastWord = lastMove.word;
       if (word.charAt(0).toLowerCase() !== lastWord.charAt(lastWord.length - 1).toLowerCase()) {
         throw new Error('Word must start with the last letter of the previous word');
@@ -106,11 +118,8 @@ export class GameService {
 
   private async updateGameTurn(gameId: string, currentUserId: string): Promise<void> {
     const gameRoom = await localDb.getGameRoom(gameId);
-
     if (!gameRoom) throw new Error('Game not found');
-
     const nextTurn = gameRoom.player1_id === currentUserId ? gameRoom.player2_id || '' : gameRoom.player1_id;
-
     await localDb.updateGameRoom(gameId, { current_turn: nextTurn });
   }
 
@@ -120,13 +129,11 @@ export class GameService {
       winner_id: winnerId
     });
     console.log('winnerId', winnerId);
-
-    // Notify clients about game end
     socketService.notifyGameUpdate(gameId, { game });
   }
 
-  async createGameVsComputer(user_id: string): Promise<GameRoom> {
-    return await localDb.createGameRoom(user_id, true);
+  async createGameVsComputer(user_id: string, difficulty: Difficulty = 'normal', targetScore?: number): Promise<GameRoom> {
+    return await localDb.createGameRoom(user_id, true, difficulty, targetScore);
   }
 
   async skipTurn(gameId: string, user_id: string): Promise<GameRoom> {
@@ -141,27 +148,30 @@ export class GameService {
     return updatedGame;
   }
 
-  private calculateWordScore(word: string): WordScore {
+  private calculateWordScore(word: string, difficulty: Difficulty = 'normal'): WordScore {
+    const multiplier = DIFFICULTY_CONFIG[difficulty].xpMultiplier;
     const baseScore = word.length;
     let bonusScore = 0;
-    
-    // Bonus points for longer words
+
     if (word.length >= 8) {
       bonusScore = 5;
     } else if (word.length >= 5) {
       bonusScore = 3;
     }
 
+    const rawTotal = baseScore + bonusScore;
     return {
       word,
       baseScore,
       bonusScore,
-      totalScore: baseScore + bonusScore
+      totalScore: Math.round(rawTotal * multiplier)
     };
   }
 
   async calculateGameScores(gameId: string): Promise<{ [key: string]: PlayerScore }> {
     const moves = await localDb.getGameMoves(gameId);
+    const game = await localDb.getGameRoom(gameId);
+    const difficulty = game?.difficulty || 'normal';
 
     const scores: { [key: string]: PlayerScore } = {};
 
@@ -174,7 +184,7 @@ export class GameService {
         };
       }
 
-      const wordScore = this.calculateWordScore(move.word);
+      const wordScore = this.calculateWordScore(move.word, difficulty);
       scores[move.user_id].words.push(wordScore);
       scores[move.user_id].totalScore += wordScore.totalScore;
     });

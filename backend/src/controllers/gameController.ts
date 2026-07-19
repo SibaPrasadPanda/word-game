@@ -8,8 +8,8 @@ const gameService = new GameService();
 export class GameController {
     createGame = async (req: Request, res: Response) => {
         try {
-            const { user_id } = req.body;
-            const game = await gameService.createGame(user_id);
+            const { user_id, targetScore } = req.body;
+            const game = await gameService.createGame(user_id, targetScore);
             res.json({ game, shareableLink: `${config.corsOrigin}/game/${game.id}` });
         } catch (error) {
             res.status(500).json({ error: (error as Error).message });
@@ -78,8 +78,8 @@ export class GameController {
 
     createGameVsComputer = async (req: Request, res: Response) =>{
         try {
-            const { user_id } = req.body;
-            const game = await gameService.createGameVsComputer(user_id);
+            const { user_id, difficulty = 'normal', targetScore } = req.body;
+            const game = await gameService.createGameVsComputer(user_id, difficulty, targetScore);
             res.status(201).json({ game });
         } catch (error: any) {
             res.status(400).json({ error: error.message });

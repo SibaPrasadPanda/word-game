@@ -732,3 +732,126 @@
     transform: translateY(0);
   }
 }
+
+/* ---- Difficulty Badge ---- */
+.difficulty-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin-left: 8px;
+  vertical-align: middle;
+
+  &[data-diff="easy"]   { background: rgba(52, 199, 89, 0.12);  color: #34c759; }
+  &[data-diff="normal"] { background: rgba(0, 113, 227, 0.12); color: #0071e3; }
+  &[data-diff="hard"]   { background: rgba(255, 159, 10, 0.12); color: #ff9f0a; }
+  &[data-diff="expert"] { background: rgba(255, 59, 48, 0.12);  color: #ff3b30; }
+}
+
+/* ---- XP Summary Panel ---- */
+.xp-summary-panel {
+  background: var(--apple-bg-secondary);
+  border: 1px solid var(--apple-border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin: 12px 0;
+  text-align: left;
+  animation: slideIn 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.xp-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.xp-earned-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: #34c759;
+}
+
+.xp-level-pill {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--apple-text-secondary);
+  background: var(--apple-bg);
+  border: 1px solid var(--apple-border);
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.xp-total-label {
+  font-size: 12px;
+  color: var(--apple-text-secondary);
+  margin: 0;
+}
+
+/* ---- Level-Up Overlay ---- */
+.level-up-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeInOverlay 0.4s ease-out;
+}
+
+.level-up-card {
+  background: var(--apple-bg);
+  border: 1px solid var(--apple-border);
+  border-radius: 28px;
+  padding: 48px 40px;
+  text-align: center;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.3);
+  animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  .level-up-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    animation: bounceIn 0.6s 0.2s both;
+  }
+
+  .level-up-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: #ff9f0a;
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+  }
+
+  .level-up-name {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--apple-text-primary);
+    margin-bottom: 6px;
+  }
+
+  .level-up-sub {
+    font-size: 14px;
+    color: var(--apple-text-secondary);
+  }
+}
+
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.7); }
+  to   { opacity: 1; transform: scale(1);   }
+}
+
+@keyframes bounceIn {
+  0%   { transform: scale(0);    opacity: 0; }
+  60%  { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1);               }
+}

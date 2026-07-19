@@ -3,6 +3,8 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
+export type Difficulty = 'easy' | 'normal' | 'hard' | 'expert';
+
 export interface GameRoom {
   id: string;
   player1_id: string;
@@ -12,6 +14,8 @@ export interface GameRoom {
   winner_id: string;
   created_at: Date;
   is_vs_computer: boolean;
+  difficulty: Difficulty;
+  target_score?: number;
 }
 
 export interface GameMove {
@@ -43,8 +47,8 @@ export class GameService {
 
   constructor(private http: HttpClient) {}
 
-  createGame(user_id: string): Observable<{ game: GameRoom; shareableLink: string }> {
-    return this.http.post<{ game: GameRoom; shareableLink: string }>(`${this.apiUrl}/create`, { user_id });
+  createGame(user_id: string, targetScore?: number): Observable<{ game: GameRoom; shareableLink: string }> {
+    return this.http.post<{ game: GameRoom; shareableLink: string }>(`${this.apiUrl}/create`, { user_id, targetScore });
   }
 
   joinGame(gameId: string, user_id: string): Observable<{ game: GameRoom }> {
@@ -69,8 +73,8 @@ export class GameService {
     });
   }
 
-  createGameVsComputer(user_id: string): Observable<{ game: GameRoom; }> {
-    return this.http.post<{ game: GameRoom }>(`${this.apiUrl}/create-vs-computer`, { user_id });
+  createGameVsComputer(user_id: string, difficulty: Difficulty = 'normal', targetScore?: number): Observable<{ game: GameRoom; }> {
+    return this.http.post<{ game: GameRoom }>(`${this.apiUrl}/create-vs-computer`, { user_id, difficulty, targetScore });
   }
 
   getGameScores(gameId: string): Observable<{ scores: { [key: string]: PlayerScore } }> {

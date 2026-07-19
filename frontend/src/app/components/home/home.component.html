@@ -1,13 +1,71 @@
 <div class="container">
   <app-loading-spinner></app-loading-spinner>
-  
+
   <div *ngIf="errorMessage" class="error-message">
     {{ errorMessage }}
+  </div>
+
+  <!-- XP / Level Banner -->
+  <div class="level-banner">
+    <div class="level-badge" [style.color]="userProgress.color">
+      <span class="level-icon">{{ userProgress.icon }}</span>
+      <span class="level-info">
+        <span class="level-title">{{ userProgress.title }}</span>
+        <span class="level-num">Level {{ userProgress.level }}</span>
+      </span>
+    </div>
+    <div class="xp-bar-wrap">
+      <div class="xp-bar-track">
+        <div class="xp-bar-fill" [style.width.%]="userProgress.progressPercent" [style.background]="userProgress.color"></div>
+      </div>
+      <span class="xp-label">
+        {{ userProgress.xp }} XP
+        <ng-container *ngIf="userProgress.xpToNext !== null"> · {{ userProgress.xpToNext }} to next level</ng-container>
+        <ng-container *ngIf="userProgress.xpToNext === null"> · MAX LEVEL</ng-container>
+      </span>
+    </div>
   </div>
 
   <div class="hero">
     <h1>Word Chain</h1>
     <p class="subtitle">A minimalist real-time vocabulary game.</p>
+  </div>
+
+  <!-- Difficulty Picker -->
+  <div class="difficulty-section">
+    <p class="difficulty-label">Select Difficulty</p>
+    <div class="difficulty-chips">
+      <button
+        *ngFor="let d of difficulties"
+        class="difficulty-chip"
+        [class.active]="selectedDifficulty === d.key"
+        [attr.data-diff]="d.key"
+        (click)="selectDifficulty(d.key)">
+        <span class="diff-label">{{ d.settings.label }}</span>
+        <span class="diff-desc">{{ d.settings.description }}</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Game Mode Picker -->
+  <div class="difficulty-section">
+    <p class="difficulty-label">Game Mode</p>
+    <div class="difficulty-chips">
+      <button class="difficulty-chip" [class.active]="gameMode === 'endless'" (click)="gameMode = 'endless'">
+        <span class="diff-label">Endless</span>
+        <span class="diff-desc">Play until time runs out</span>
+      </button>
+      <button class="difficulty-chip" [class.active]="gameMode === 'target'" (click)="gameMode = 'target'">
+        <span class="diff-label">Target Score</span>
+        <span class="diff-desc">First to reach the score wins</span>
+      </button>
+    </div>
+    <div class="target-score-input" *ngIf="gameMode === 'target'">
+      <mat-form-field appearance="outline" class="w-full">
+        <mat-label>Target Score</mat-label>
+        <input matInput type="number" [(ngModel)]="targetScore" min="10" max="1000">
+      </mat-form-field>
+    </div>
   </div>
 
   <div class="game-options">

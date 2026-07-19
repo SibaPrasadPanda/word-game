@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -9,6 +9,14 @@ import { GameService } from '../../services/game.service';
 import { CommonModule, NgIf } from '@angular/common';
 import { LoadingService } from '../../services/loading.service';
 import { LoadingSpinnerComponent } from '../loading-spinner/loading-spinner.component';
+import {
+  UserProgressService,
+  Difficulty,
+  DIFFICULTY_CONFIG,
+  DifficultySettings,
+  UserProgress,
+  LEVEL_TIERS
+} from '../../services/user-progress.service';
 
 @Component({
   selector: 'app-home',
@@ -21,27 +29,46 @@ import { LoadingSpinnerComponent } from '../loading-spinner/loading-spinner.comp
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
-    MatIconModule,NgIf,
+    MatIconModule, NgIf,
     LoadingSpinnerComponent
   ]
 })
-export class HomeComponent {
+export class HomeComponent implements OnInit {
   gameLink: string = '';
   shareableLink: string = '';
   errorMessage: string = '';
 
+  selectedDifficulty: Difficulty = 'normal';
+  difficulties: { key: Difficulty; settings: DifficultySettings }[] = [
+    { key: 'easy',   settings: DIFFICULTY_CONFIG['easy']   },
+    { key: 'normal', settings: DIFFICULTY_CONFIG['normal'] },
+    { key: 'hard',   settings: DIFFICULTY_CONFIG['hard']   },
+    { key: 'expert', settings: DIFFICULTY_CONFIG['expert'] },
+  ];
+
+  gameMode: 'endless' | 'target' = 'endless';
+  targetScore: number = 100;
+
+  userProgress!: UserProgress;
+
   constructor(
     private gameService: GameService,
     private router: Router,
-    private loadingService: LoadingService
+    private loadingService: LoadingService,
+    private userProgressService: UserProgressService
   ) {}
+
+  ngOnInit() {
+    this.userProgress = this.userProgressService.getProgress();
+  }
 
   async createGame() {
     const guestId = 'guest_' + Math.random().toString(36).substring(2);
     localStorage.setItem('user_id', guestId);
-    
+
     this.loadingService.setLoading(true);
-    this.gameService.createGame(guestId).subscribe({
+    const passTarget = this.gameMode === 'target' ? this.targetScore : undefined;
+    this.gameService.createGame(guestId, passTarget).subscribe({
       next: (response) => {
         this.shareableLink = response.shareableLink;
         localStorage.setItem('gameId', response.game.id);
@@ -66,7 +93,7 @@ export class HomeComponent {
 
     const guestId = 'guest_' + Math.random().toString(36).substring(2);
     localStorage.setItem('user_id', guestId);
-    
+
     this.loadingService.setLoading(true);
     this.gameService.joinGame(gameId, guestId).subscribe({
       next: (response) => {
@@ -83,17 +110,16 @@ export class HomeComponent {
 
   copyLink() {
     navigator.clipboard.writeText(this.shareableLink);
-    // TODO: Add copy confirmation UI
   }
 
   createGameVsComputer() {
     const guestId = 'guest_' + Math.random().toString(36).substring(2);
-    
-    this.gameService.createGameVsComputer(guestId).subscribe({
+
+    const passTarget = this.gameMode === 'target' ? this.targetScore : undefined;
+    this.gameService.createGameVsComputer(guestId, this.selectedDifficulty, passTarget).subscribe({
       next: (response) => {
         localStorage.setItem('user_id', guestId);
         localStorage.setItem('gameId', response.game.id);
-        // Navigate directly to game since no waiting needed for computer
         this.router.navigate(['/game', response.game.id]);
       },
       error: (error: { message: string }) => {
@@ -103,11 +129,13 @@ export class HomeComponent {
     });
   }
 
+  selectDifficulty(d: Difficulty) {
+    this.selectedDifficulty = d;
+  }
+
   private showError(message: string) {
     this.errorMessage = message;
-    setTimeout(() => {
-      this.errorMessage = '';
-    }, 3000);
+    setTimeout(() => { this.errorMessage = ''; }, 3000);
   }
 
   private extractGameId(link: string): string | null {

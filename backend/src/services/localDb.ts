@@ -1,11 +1,11 @@
-import { GameRoom, GameMove } from '../models/types';
+import { GameRoom, GameMove, Difficulty } from '../models/types';
 import crypto from 'crypto';
 
 class LocalDb {
   private gameRooms: Map<string, GameRoom> = new Map();
   private gameMoves: Map<string, GameMove[]> = new Map(); // game_room_id -> moves
 
-  async createGameRoom(player1_id: string, is_vs_computer = false): Promise<GameRoom> {
+  async createGameRoom(player1_id: string, is_vs_computer = false, difficulty: Difficulty = 'normal', target_score?: number): Promise<GameRoom> {
     const id = crypto.randomUUID();
     const gameRoom: GameRoom = {
       id,
@@ -15,12 +15,15 @@ class LocalDb {
       current_turn: player1_id,
       winner_id: null,
       created_at: new Date().toISOString(),
-      is_vs_computer
+      is_vs_computer,
+      difficulty,
+      target_score
     };
     this.gameRooms.set(id, gameRoom);
     this.gameMoves.set(id, []);
     return gameRoom;
   }
+
 
   async getGameRoom(id: string): Promise<GameRoom | null> {
     return this.gameRooms.get(id) || null;

@@ -16,6 +16,7 @@ import { ComputerplayerService } from '../../services/computerplayer.service';
 import { SocketService } from '../../services/socket.service';
 import { LoadingSpinnerComponent } from '../loading-spinner/loading-spinner.component';
 import { LoadingService } from '../../services/loading.service';
+import { UserProgressService, DIFFICULTY_CONFIG, XpAwardResult, Difficulty } from '../../services/user-progress.service';
 
 @Component({
   selector: 'app-game-board',
@@ -50,6 +51,7 @@ export class GameBoardComponent implements OnInit, OnDestroy {
   private scoresSubscription?: Subscription;
   errorMessage: string = '';
   private isComputerMoveInProgress = false;
+  private computerMoveTimer?: any;
   private pollInterval = 3000; // Start with 3 seconds
   private maxPollInterval = 10000; // Max 10 seconds
   private gameUpdateSubject = new Subject<string>();
@@ -58,7 +60,12 @@ export class GameBoardComponent implements OnInit, OnDestroy {
 
   // Blitz Turn Timer
   timeLeft: number = 15;
+  maxTimeLeft: number = 15;
   private timerInterval?: any;
+
+  // XP / Level tracking
+  xpAwardResult: XpAwardResult | null = null;
+  showLevelUpOverlay: boolean = false;
 
   // Tactical Power-Ups state
   powerUps = {
@@ -80,7 +87,8 @@ export class GameBoardComponent implements OnInit, OnDestroy {
     private socketService: SocketService,
     private route: ActivatedRoute,
     private router: Router,
-    private loadingService: LoadingService
+    private loadingService: LoadingService,
+    private userProgressService: UserProgressService
   ) {
     this.currentUserId = localStorage.getItem('user_id') || '';
   }
@@ -106,6 +114,7 @@ export class GameBoardComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.clearTimer();
+    if (this.computerMoveTimer) clearTimeout(this.computerMoveTimer);
     this.socketService.disconnect();
     this.gameUpdateSubject.complete();
     this.movesUpdateSubject.complete();
@@ -124,26 +133,25 @@ export class GameBoardComponent implements OnInit, OnDestroy {
     this.loadingService.setLoading(true);
     this.gameService.getGame(gameId).subscribe({
       next: (response) => {
+        const wasFinished = this.game?.status === 'FINISHED';
+        const justFinished = response.game.status === 'FINISHED' && !wasFinished;
+
         if (response.game.status === 'FINISHED' && response.game.winner_id === this.currentUserId) {
-          if (!this.game || this.game.status !== 'FINISHED') {
+          if (!wasFinished) {
             this.triggerConfetti();
           }
         }
 
         this.game = response.game;
+
+        // Trigger turn-change logic (which handles computer moves if needed)
         this.handleTurnChange();
 
-        // Make computer move if it's computer's turn
-        if (this.game.is_vs_computer && !this.isYourTurn && !this.isGameEnded) {
-          // Add delay and check if move is not already in progress
-          if (!this.isComputerMoveInProgress) {
-            setTimeout(() => this.makeComputerMove(), 1000);
-          }
-        }
-
-        // Only load moves if game is not finished
+        // Only load moves if game is not finished (otherwise handleGameFinished does it)
         if (!this.isGameEnded) {
           this.loadMoves(gameId);
+        } else if (justFinished) {
+          this.handleGameFinished();
         }
 
         // If game just ended, unsubscribe from polling
@@ -158,6 +166,21 @@ export class GameBoardComponent implements OnInit, OnDestroy {
         this.loadingService.setLoading(false);
       }
     });
+  }
+
+  private awardXp() {
+    if (!this.game) return;
+    const myWords = this.moves
+      .filter(m => m.user_id === this.currentUserId)
+      .map(m => m.word);
+    const difficulty = (this.game.difficulty || 'normal') as Difficulty;
+    const didWin = this.isWinner;
+    const xpGained = this.userProgressService.calculateXp(myWords, difficulty, didWin);
+    this.xpAwardResult = this.userProgressService.addXp(xpGained);
+    if (this.xpAwardResult.leveledUp) {
+      this.showLevelUpOverlay = true;
+      setTimeout(() => { this.showLevelUpOverlay = false; }, 4000);
+    }
   }
 
   private loadMoves(gameId: string) {
@@ -188,13 +211,12 @@ export class GameBoardComponent implements OnInit, OnDestroy {
           }
         }
 
+        const wasFinished = this.game?.status === 'FINISHED';
         this.game = data.game;
         this.handleTurnChange();
         
-        if (this.game?.is_vs_computer && !this.isYourTurn && !this.isGameEnded) {
-          if (!this.isComputerMoveInProgress) {
-            setTimeout(() => this.makeComputerMove(), 1000);
-          }
+        if (this.game?.status === 'FINISHED' && !wasFinished) {
+          this.handleGameFinished();
         }
       }
     });
@@ -230,19 +252,31 @@ export class GameBoardComponent implements OnInit, OnDestroy {
     });
   }
 
+  private handleGameFinished() {
+    if (!this.game) return;
+    
+    // Fetch final moves reliably before awarding XP
+    this.gameService.getMoves(this.game.id).subscribe({
+      next: (response) => {
+        this.moves = response.moves;
+        if (!this.xpAwardResult) {
+          this.awardXp();
+        }
+      }
+    });
+
+    if (this.pollSubscription) {
+      this.pollSubscription.unsubscribe();
+    }
+  }
+
   private isDuplicateWord(word: string): boolean {
     return this.moves.some(move => move.word.toLowerCase() === word.toLowerCase());
   }
 
   get isYourTurn(): boolean {
     if (!this.game) return false;
-
-    // Player 1's turn when moves length is even (0, 2, 4...)
-    // Player 2's turn when moves length is odd (1, 3, 5...)
-    const isPlayer1 = this.currentUserId === this.game.player1_id;
-    const isEvenMoves = this.moves.length % 2 === 0;
-
-    return (isPlayer1 && isEvenMoves) || (!isPlayer1 && !isEvenMoves);
+    return this.game.current_turn === this.currentUserId;
   }
 
   get opponentId(): string | null {
@@ -293,10 +327,12 @@ export class GameBoardComponent implements OnInit, OnDestroy {
     }
 
     const word = this.currentWord.toLowerCase().trim();
+    const difficulty = (this.game?.difficulty || 'normal') as Difficulty;
+    const minLen = DIFFICULTY_CONFIG[difficulty].minWordLength;
 
     // Client-side: minimum length guard (instant feedback, no network round-trip)
-    if (word.length < 3) {
-      this.showError('Word must be at least 3 letters long');
+    if (word.length < minLen) {
+      this.showError(`Word must be at least ${minLen} letters long`);
       return;
     }
 
@@ -409,27 +445,30 @@ export class GameBoardComponent implements OnInit, OnDestroy {
 
   startNewGame() {
     const isVsComputer = this.game?.is_vs_computer || false;
+    const difficulty = this.game?.difficulty || 'normal';
     this.clearTimer();
+    this.xpAwardResult = null;
 
     if (isVsComputer) {
-      this.gameService.createGameVsComputer(this.currentUserId).subscribe({
+      this.gameService.createGameVsComputer(this.currentUserId, difficulty as Difficulty).subscribe({
         next: (response) => {
           this.router.navigate(['/game', response.game.id]);
         },
-        error: (error) => this.showError('Failed to create new game')
+        error: () => this.showError('Failed to create new game')
       });
     } else {
       this.gameService.createGame(this.currentUserId).subscribe({
         next: (response) => {
           this.router.navigate(['/game', response.game.id]);
         },
-        error: (error) => this.showError('Failed to create new game')
+        error: () => this.showError('Failed to create new game')
       });
     }
   }
 
   private makeComputerMove() {
     if (!this.game || !this.moves.length || this.isComputerMoveInProgress) return;
+    if (this.isYourTurn) return; // Strict guard against moving during user's turn
 
     this.isComputerMoveInProgress = true;
     this.loadingService.setLoading(true);
@@ -493,7 +532,10 @@ export class GameBoardComponent implements OnInit, OnDestroy {
     if (!this.game || this.isGameEnded) return;
 
     if (this.isYourTurn) {
-      this.timeLeft = 15;
+      // Use difficulty-specific timer
+      const difficulty = (this.game?.difficulty || 'normal') as Difficulty;
+      this.timeLeft = DIFFICULTY_CONFIG[difficulty].timerSeconds;
+      this.maxTimeLeft = this.timeLeft;
       this.timerInterval = setInterval(() => {
         this.timeLeft--;
         if (this.timeLeft <= 0) {
@@ -505,6 +547,18 @@ export class GameBoardComponent implements OnInit, OnDestroy {
       setTimeout(() => {
         this.wordInputElement?.nativeElement?.focus();
       }, 150);
+    } else if (this.game.is_vs_computer) {
+      if (!this.isComputerMoveInProgress) {
+        const difficulty = (this.game?.difficulty || 'normal') as Difficulty;
+        const aiDelay = DIFFICULTY_CONFIG[difficulty].aiResponseMs;
+        
+        // Clear pending computer move timer to prevent dupes
+        if (this.computerMoveTimer) clearTimeout(this.computerMoveTimer);
+        
+        this.computerMoveTimer = setTimeout(() => {
+          this.makeComputerMove();
+        }, aiDelay);
+      }
     }
   }
 

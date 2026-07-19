@@ -11,7 +11,7 @@
 
   <div class="game-board">
     <!-- Blitz Timer Progress Line -->
-    <div class="blitz-timer-bar" *ngIf="!isGameEnded && isYourTurn" [style.width.%]="(timeLeft / 15) * 100" [class.warning]="timeLeft <= 5"></div>
+    <div class="blitz-timer-bar" *ngIf="!isGameEnded && isYourTurn" [style.width.%]="(timeLeft / maxTimeLeft) * 100" [class.warning]="timeLeft <= 5"></div>
 
     <!-- Header: Scores & Status -->
     <div class="game-status">
@@ -19,13 +19,18 @@
         <div *ngIf="!isGameEnded">
           <div [ngClass]="{'active-turn': isYourTurn}" class="turn-indicator">
             {{ turnIndicator }} <span class="timer-badge" *ngIf="isYourTurn">({{ timeLeft }}s)</span>
+            <span class="difficulty-badge" *ngIf="game?.difficulty" [attr.data-diff]="game?.difficulty">{{ game?.difficulty | uppercase }}</span>
           </div>
           
           <div class="player-info">
             <div class="player-card" [class.highlight]="isYourTurn">
               <div class="player-name">You</div>
               <div class="score-info" *ngIf="playerScores[currentUserId]">
-                <div class="total-score">{{ playerScores[currentUserId].totalScore }} pts</div>
+                <div class="total-score">
+                  {{ playerScores[currentUserId].totalScore }}
+                  <span class="target-score" *ngIf="game?.target_score"> / {{ game?.target_score }}</span>
+                  <span class="pts-label">pts</span>
+                </div>
                 <div class="word-scores">
                   <span *ngFor="let word of playerScores[currentUserId].words" class="word-score">
                     {{ word.word }} (+{{ word.totalScore }})
@@ -37,7 +42,11 @@
             <div class="player-card" *ngIf="opponentId" [class.highlight]="!isYourTurn">
               <div class="player-name">Opponent</div>
               <div class="score-info" *ngIf="opponentId && playerScores[opponentId]">
-                <div class="total-score">{{ playerScores[opponentId].totalScore }} pts</div>
+                <div class="total-score">
+                  {{ playerScores[opponentId].totalScore }}
+                  <span class="target-score" *ngIf="game?.target_score"> / {{ game?.target_score }}</span>
+                  <span class="pts-label">pts</span>
+                </div>
                 <div class="word-scores">
                   <span *ngFor="let word of playerScores[opponentId].words" class="word-score">
                     {{ word.word }} (+{{ word.totalScore }})
@@ -53,6 +62,16 @@
           <p class="end-game-subtitle">
             {{ isWinner ? 'Your opponent surrendered!' : 'Better luck next time!' }}
           </p>
+
+          <!-- XP Summary Panel -->
+          <div *ngIf="xpAwardResult" class="xp-summary-panel">
+            <div class="xp-summary-header">
+              <span class="xp-earned-label">+{{ xpAwardResult.xpGained }} XP earned</span>
+              <span class="xp-level-pill">{{ xpAwardResult.newIcon }} Lv.{{ xpAwardResult.newLevel }} · {{ xpAwardResult.newTitle }}</span>
+            </div>
+            <p class="xp-total-label">Total: {{ xpAwardResult.newXp }} XP</p>
+          </div>
+
           <div class="end-game-actions">
             <button class="apple-btn primary" (click)="startNewGame()">
               Start New Game
@@ -62,6 +81,16 @@
             </button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Level-Up Overlay -->
+    <div class="level-up-overlay" *ngIf="showLevelUpOverlay">
+      <div class="level-up-card">
+        <div class="level-up-icon">{{ xpAwardResult?.newIcon }}</div>
+        <div class="level-up-title">Level Up! 🎉</div>
+        <div class="level-up-name">{{ xpAwardResult?.newTitle }}</div>
+        <div class="level-up-sub">You reached Level {{ xpAwardResult?.newLevel }}</div>
       </div>
     </div>
 
