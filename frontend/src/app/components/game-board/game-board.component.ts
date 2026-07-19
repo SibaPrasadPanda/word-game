@@ -91,6 +91,10 @@ export class GameBoardComponent implements OnInit, OnDestroy {
     private userProgressService: UserProgressService
   ) {
     this.currentUserId = localStorage.getItem('user_id') || '';
+    if (!this.currentUserId) {
+      this.currentUserId = 'guest_' + Math.random().toString(36).substring(2);
+      localStorage.setItem('user_id', this.currentUserId);
+    }
   }
 
   ngOnInit() {
@@ -143,6 +147,24 @@ export class GameBoardComponent implements OnInit, OnDestroy {
         }
 
         this.game = response.game;
+
+        if (this.game.status === 'WAITING' && this.game.player1_id !== this.currentUserId) {
+          // Attempt to join the game automatically
+          this.gameService.joinGame(gameId, this.currentUserId).subscribe({
+            next: (joinResponse) => {
+              this.game = joinResponse.game;
+              this.handleTurnChange();
+              if (!this.isGameEnded) this.loadMoves(gameId);
+              this.loadingService.setLoading(false);
+            },
+            error: () => {
+              this.showError('Game is full or not available');
+              this.router.navigate(['/']);
+              this.loadingService.setLoading(false);
+            }
+          });
+          return; // Skip the rest of loadGame logic for now, it's handled in the callback
+        }
 
         // Trigger turn-change logic (which handles computer moves if needed)
         this.handleTurnChange();
