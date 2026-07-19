@@ -1,5 +1,5 @@
-import { Component, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
+import { Component, OnInit, inject } from '@angular/core';
+import { Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -9,6 +9,7 @@ import { GameService } from '../../services/game.service';
 import { CommonModule, NgIf } from '@angular/common';
 import { LoadingService } from '../../services/loading.service';
 import { LoadingSpinnerComponent } from '../loading-spinner/loading-spinner.component';
+import { Auth, user } from '@angular/fire/auth';
 import {
   UserProgressService,
   Difficulty,
@@ -29,11 +30,16 @@ import {
     MatButtonModule,
     MatFormFieldModule,
     MatInputModule,
-    MatIconModule, NgIf,
-    LoadingSpinnerComponent
+    MatIconModule,
+    LoadingSpinnerComponent,
+    RouterModule
   ]
 })
 export class HomeComponent implements OnInit {
+  private auth: Auth = inject(Auth);
+  user$ = user(this.auth);
+
+  playerName = '';
   gameLink: string = '';
   shareableLink: string = '';
   errorMessage: string = '';

@@ -1,53 +1,38 @@
-import { Injectable } from '@angular/core';
-import { io, Socket } from 'socket.io-client';
-import { environment } from '../../environments/environment';
+import { Injectable, inject } from '@angular/core';
+import { Firestore, doc, docData, collection, collectionData, query, orderBy } from '@angular/fire/firestore';
 import { Observable } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
 })
 export class SocketService {
-  private socket: Socket;
-
-  constructor() {
-    this.socket = io(environment.apiUrl);
-  }
+  private firestore: Firestore = inject(Firestore);
 
   joinGame(gameId: string): void {
-    this.socket.emit('joinGame', gameId);
+    // No-op for Firestore, joining is just listening.
   }
 
-  onGameUpdate(): Observable<any> {
-    return new Observable(observer => {
-      this.socket.on('gameUpdate', (data) => {
-        observer.next(data);
-      });
-    });
+  onGameUpdate(gameId: string): Observable<any> {
+    const docRef = doc(this.firestore, `gameRooms/${gameId}`);
+    return docData(docRef, { idField: 'id' });
   }
 
-  onMovesUpdate(): Observable<any> {
-    return new Observable(observer => {
-      this.socket.on('movesUpdate', (data) => {
-        observer.next(data);
-      });
-    });
+  onMovesUpdate(gameId: string): Observable<any> {
+    const colRef = collection(this.firestore, `gameRooms/${gameId}/moves`);
+    const q = query(colRef, orderBy('created_at', 'asc'));
+    return collectionData(q, { idField: 'id' });
   }
 
   disconnect(): void {
-    if (this.socket) {
-      this.socket.disconnect();
-    }
+    // Subscriptions handled by consumers
   }
 
+  // Reactions can be stored in a subcollection or transient, but let's mock for now or use HTTP
   sendReaction(gameId: string, emoji: string): void {
-    this.socket.emit('sendReaction', { gameId, emoji });
+    console.log('Reactions not implemented in Firestore yet');
   }
 
   onReactionReceived(): Observable<any> {
-    return new Observable(observer => {
-      this.socket.on('reactionReceived', (data) => {
-        observer.next(data);
-      });
-    });
+    return new Observable();
   }
 }

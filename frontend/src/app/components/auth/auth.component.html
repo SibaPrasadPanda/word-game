@@ -1,0 +1,41 @@
+<div class="auth-container">
+  <mat-card class="auth-card">
+    <mat-card-header>
+      <div mat-card-avatar class="header-icon">
+        <mat-icon>security</mat-icon>
+      </div>
+      <mat-card-title>Authentication</mat-card-title>
+      <mat-card-subtitle>Sign in to save your XP</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content *ngIf="user$ | async as user; else loginTpl">
+      <div class="user-profile">
+        <img *ngIf="user.photoURL" [src]="user.photoURL" alt="Profile" class="avatar" />
+        <p>Welcome, {{ user.displayName || user.email }}!</p>
+      </div>
+    </mat-card-content>
+
+    <mat-card-actions *ngIf="user$ | async; else loginActionsTpl">
+      <button mat-stroked-button color="warn" (click)="logout()">
+        <mat-icon>logout</mat-icon> Logout
+      </button>
+      <button mat-flat-button color="primary" routerLink="/">
+        Go to Game
+      </button>
+    </mat-card-actions>
+  </mat-card>
+</div>
+
+<ng-template #loginTpl>
+  <mat-card-content class="login-content">
+    <p>Sign in using your Google account to track your progress and level up.</p>
+  </mat-card-content>
+</ng-template>
+
+<ng-template #loginActionsTpl>
+  <mat-card-actions>
+    <button mat-flat-button class="google-btn" (click)="loginWithGoogle()">
+      <mat-icon>login</mat-icon> Sign in with Google
+    </button>
+  </mat-card-actions>
+</ng-template>

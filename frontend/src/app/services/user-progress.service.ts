@@ -1,4 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { Auth, user, User } from '@angular/fire/auth';
+import { Firestore, doc, getDoc, setDoc } from '@angular/fire/firestore';
+import { Subscription } from 'rxjs';
 
 export type Difficulty = 'easy' | 'normal' | 'hard' | 'expert';
 
@@ -58,6 +61,53 @@ export interface XpAwardResult {
 @Injectable({ providedIn: 'root' })
 export class UserProgressService {
   private readonly STORAGE_KEY = 'wordgame_progress';
+  
+  private auth: Auth = inject(Auth);
+  private firestore: Firestore = inject(Firestore);
+  private currentUser: User | null = null;
+  private authSub: Subscription;
+
+  constructor() {
+    this.authSub = user(this.auth).subscribe(async (u) => {
+      this.currentUser = u;
+      if (u) {
+        await this.syncFromCloud(u.uid);
+      }
+    });
+  }
+
+  private async syncFromCloud(uid: string) {
+    try {
+      const userDoc = await getDoc(doc(this.firestore, `users/${uid}`));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        if (data && typeof data['xp'] === 'number') {
+          // Compare with local. We can take max of local and cloud to prevent losing XP if cloud is somehow behind,
+          // but typically cloud is source of truth. Let's trust cloud if it has higher or equal XP, or local if local is higher (offline play).
+          const localXp = this.getRawProgress().xp;
+          const finalXp = Math.max(localXp, data['xp']);
+          localStorage.setItem(this.STORAGE_KEY, JSON.stringify({ xp: finalXp }));
+          if (finalXp > data['xp']) {
+            this.syncToCloud(finalXp); // Push local to cloud
+          }
+        }
+      } else {
+        // Init cloud
+        this.syncToCloud(this.getRawProgress().xp);
+      }
+    } catch (e) {
+      console.error('Error syncing from cloud:', e);
+    }
+  }
+
+  private async syncToCloud(xp: number) {
+    if (!this.currentUser) return;
+    try {
+      await setDoc(doc(this.firestore, `users/${this.currentUser.uid}`), { xp }, { merge: true });
+    } catch (e) {
+      console.error('Error syncing to cloud:', e);
+    }
+  }
 
   private getRawProgress(): { xp: number } {
     try {
@@ -69,6 +119,7 @@ export class UserProgressService {
 
   private saveXp(xp: number): void {
     localStorage.setItem(this.STORAGE_KEY, JSON.stringify({ xp }));
+    this.syncToCloud(xp);
   }
 
   private getLevelForXp(xp: number): LevelTier {

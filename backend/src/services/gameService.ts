@@ -1,5 +1,5 @@
 import { config } from '../config/config';
-import { socketService } from '../index';
+
 import { GameRoom, GameMove, WordScore, PlayerScore, Difficulty, DIFFICULTY_CONFIG } from '../models/types';
 import { localDb } from './localDb';
 
@@ -69,17 +69,17 @@ export class GameService {
             if (totalScore >= game.target_score) {
                 // End game immediately, user won!
                 await this.endGame(gameId, user_id);
-                socketService.notifyMovesUpdate(gameId, { moves });
+
                 return move;
             }
         }
 
         // Notify clients about the new move
-        socketService.notifyMovesUpdate(gameId, { moves });
+
 
         // Update game state and notify
         const updatedGame = await localDb.getGameRoom(gameId);
-        socketService.notifyGameUpdate(gameId, { game: updatedGame });
+
 
         return move;
     } catch (error: any) {
@@ -129,7 +129,7 @@ export class GameService {
       winner_id: winnerId
     });
     console.log('winnerId', winnerId);
-    socketService.notifyGameUpdate(gameId, { game });
+
   }
 
   async createGameVsComputer(user_id: string, difficulty: Difficulty = 'normal', targetScore?: number): Promise<GameRoom> {
@@ -144,7 +144,7 @@ export class GameService {
     const nextTurn = game.player1_id === user_id ? game.player2_id || '' : game.player1_id;
     const updatedGame = await localDb.updateGameRoom(gameId, { current_turn: nextTurn });
 
-    socketService.notifyGameUpdate(gameId, { game: updatedGame });
+
     return updatedGame;
   }
 

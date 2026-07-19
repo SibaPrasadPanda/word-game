@@ -203,16 +203,17 @@ export class GameBoardComponent implements OnInit, OnDestroy {
 
     this.socketService.joinGame(gameId);
     
-    this.gameUpdateSubscription = this.socketService.onGameUpdate().subscribe({
-      next: (data) => {
-        if (data.game.status === 'FINISHED' && data.game.winner_id === this.currentUserId) {
+    this.gameUpdateSubscription = this.socketService.onGameUpdate(gameId).subscribe({
+      next: (gameDoc) => {
+        const game = gameDoc as any; // Firestore doc data
+        if (game && game.status === 'FINISHED' && game.winner_id === this.currentUserId) {
           if (!this.game || this.game.status !== 'FINISHED') {
             this.triggerConfetti();
           }
         }
 
         const wasFinished = this.game?.status === 'FINISHED';
-        this.game = data.game;
+        this.game = game;
         this.handleTurnChange();
         
         if (this.game?.status === 'FINISHED' && !wasFinished) {
@@ -221,14 +222,14 @@ export class GameBoardComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.movesUpdateSubscription = this.socketService.onMovesUpdate().subscribe({
-      next: (data) => {
-        this.moves = data.moves;
+    this.movesUpdateSubscription = this.socketService.onMovesUpdate(gameId).subscribe({
+      next: (movesDocs) => {
+        this.moves = movesDocs as any[];
         this.handleTurnChange();
       }
     });
 
-    this.scoresSubscription = this.socketService.onGameUpdate().subscribe(() => {
+    this.scoresSubscription = this.socketService.onGameUpdate(gameId).subscribe(() => {
       this.updateScores();
     });
 

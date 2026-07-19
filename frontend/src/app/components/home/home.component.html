@@ -1,4 +1,18 @@
 <div class="container">
+  <div class="header-actions">
+    <ng-container *ngIf="user$ | async as user; else loginBtn">
+      <button mat-button class="user-btn" routerLink="/auth">
+        <img *ngIf="user.photoURL" [src]="user.photoURL" class="user-avatar" />
+        {{ user.displayName || user.email }}
+      </button>
+    </ng-container>
+    <ng-template #loginBtn>
+      <button mat-stroked-button color="primary" routerLink="/auth">
+        <mat-icon>login</mat-icon> Sign in to save XP
+      </button>
+    </ng-template>
+  </div>
+
   <app-loading-spinner></app-loading-spinner>
 
   <div *ngIf="errorMessage" class="error-message">
