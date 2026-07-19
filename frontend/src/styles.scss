@@ -81,25 +81,22 @@ html, body {
   color: var(--apple-text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow: hidden;
 }
 
 main {
   display: flex;
   flex-direction: column;
   height: calc(100vh - 64px);
-  max-height: calc(100vh - 64px);
   max-width: 800px;
   margin: 0 auto;
   padding: 1rem 1.5rem;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 
   @media (max-width: 768px) {
     padding: 0.5rem;
     height: calc(100vh - 56px);
-    min-height: calc(100vh - 56px);
-    max-height: calc(100vh - 56px);
   }
 }
 
